@@ -37,6 +37,7 @@ public class VirtualNetworkMapper {
 			srchost.addVMRoute(srcVm, dstVm, flowId, dsthost);
 		}
 		else {
+			// FYI see how things are handled when communicating VMs are in diff hosts
 			Log.printLine(CloudSim.clock() + ": VMs are in different hosts:"+ srchost+ "("+srcVm+")->"+dsthost+"("+dstVm+")");
 			boolean findRoute = buildForwardingTableRec(srchost, srcVm, dstVm, flowId);
 			
@@ -49,8 +50,12 @@ public class VirtualNetworkMapper {
 		return true;
 	}
 
+	// FYI You can use the logic in this table to find the number of hops between two Physical Machines!!!
 	protected boolean buildForwardingTableRec(Node node, int srcVm, int dstVm, int flowId) {
 		// There are multiple links. Determine which hop to go.
+		// FYI Maybe we can introduce custom concepts here based on link energy consumption? Note that this is a recursive function.
+		// We can update power utilization monitor for each nextLink in the route from source VM to dest VM. I think power consumption should be calculated when
+		// actual packet transmission happens. See addPacketToChannel
 		SDNHost desthost = nos.findHost(dstVm);
 		if(node.equals(desthost))
 			return true;

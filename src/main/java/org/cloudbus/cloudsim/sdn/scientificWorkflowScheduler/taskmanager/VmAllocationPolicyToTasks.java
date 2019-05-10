@@ -5,12 +5,7 @@
  *
  * Copyright (c) 2015, The University of Melbourne, Australia
  */
-package org.cloudbus.cloudsim.sdn.policies.vmallocation;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+package org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager;
 
 import org.cloudbus.cloudsim.Host;
 import org.cloudbus.cloudsim.Log;
@@ -18,6 +13,11 @@ import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.VmAllocationPolicy;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.sdn.monitor.power.PowerUtilizationMaxHostInterface;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * VM Allocation Policy - BW and Compute combined, MFF.
@@ -27,12 +27,12 @@ import org.cloudbus.cloudsim.sdn.monitor.power.PowerUtilizationMaxHostInterface;
  * @author Jungmin Son
  * @since CloudSimSDN 1.0
  */
-public class VmAllocationPolicyCombinedMostFullFirst extends VmAllocationPolicy implements PowerUtilizationMaxHostInterface {
+public class VmAllocationPolicyToTasks extends VmAllocationPolicy implements PowerUtilizationMaxHostInterface {
 
 	protected final double hostTotalMips;
 	protected final double hostTotalBw;
 	protected final int hostTotalPes;
-	
+
 	/** The vm table. */
 	private Map<String, Host> vmTable;
 
@@ -41,7 +41,7 @@ public class VmAllocationPolicyCombinedMostFullFirst extends VmAllocationPolicy 
 
 	/** The free pes. */
 	private List<Integer> freePes;
-	
+
 	private Map<String, Long> usedMips;
 	private List<Long> freeMips;
 	private Map<String, Long> usedBw;
@@ -49,12 +49,12 @@ public class VmAllocationPolicyCombinedMostFullFirst extends VmAllocationPolicy 
 
 	/**
 	 * Creates the new VmAllocationPolicySimple object.
-	 * 
+	 *
 	 * @param list the list
 	 * @pre $none
 	 * @post $none
 	 */
-	public VmAllocationPolicyCombinedMostFullFirst(List<? extends Host> list) {
+	public VmAllocationPolicyToTasks(List<? extends Host> list) {
 		super(list);
 
 		setFreePes(new ArrayList<Integer>());
@@ -358,6 +358,18 @@ public class VmAllocationPolicyCombinedMostFullFirst extends VmAllocationPolicy 
 		}
 
 		return false;
-	}	
+	}
+
+	/**
+	 * Allocates a host for a given VM.
+	 *
+	 * @param task the task to allocate hosts to
+	 * @return $true if the host could be allocated; $false otherwise
+	 * @pre $none
+	 * @post $none
+	 */
+	public boolean allocateHostsForTask(Task task) {
+		return true;
+	}
 }
 

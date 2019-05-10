@@ -30,6 +30,8 @@ import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.VmAllocationInGroup;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.VmAllocationPolicyPriorityFirst;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.VmGroup;
+import org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager.Task;
+import org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager.VmAllocationPolicyToTasks;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
 import org.cloudbus.cloudsim.sdn.workload.Activity;
 import org.cloudbus.cloudsim.sdn.workload.Processing;
@@ -51,7 +53,28 @@ public class SDNDatacenter extends Datacenter {
 	private static HashMap<Integer,Datacenter> globalVmDatacenterMap = new HashMap<Integer, Datacenter>();
 	
 	private static boolean isMigrateEnabled = false;
-	
+
+	/** The vm provisioner. */
+	private VmAllocationPolicyToTasks taskVmAllocationPolicy;
+
+	/**
+	 * Gets the vm allocation policy.
+	 *
+	 * @return the vm allocation policy
+	 */
+	public VmAllocationPolicyToTasks getTaskVmAllocationPolicy() {
+		return taskVmAllocationPolicy;
+	}
+
+	/**
+	 * Sets the vm allocation policy.
+	 *
+	 * @param vmAllocationPolicy the new vm allocation policy
+	 */
+	public void setTaskVmAllocationPolicy(VmAllocationPolicyToTasks vmAllocationPolicy) {
+		this.taskVmAllocationPolicy =  vmAllocationPolicy;
+	}
+
 	// For results
 	public static int migrationCompleted = 0;
 	public static int migrationAttempted = 0;
@@ -207,9 +230,31 @@ public class SDNDatacenter extends Datacenter {
 			case CloudSimTagsSDN.SDN_VM_CREATE_DYNAMIC:
 				processVmCreateDynamic(ev);
 				break;
+			case CloudSimTagsSDN.TASK_CREATE_ACK:
+				processTaskCreate(ev, false);
+				break;
 			default: 
 				System.out.println("Unknown event recevied by SdnDatacenter. Tag:"+ev.getTag());
 		}
+	}
+
+	protected void processTaskCreate(SimEvent ev, boolean ack) {
+		Task task = (Task) ev.getData();
+
+		boolean result = getTaskVmAllocationPolicy().allocateHostsForTask(task);
+
+		if (result) {
+			List<SDNVm> taskVmList = task.getJobs();
+			for (SDNVm vm : taskVmList) {
+				getVmList().add(vm);
+				if (vm.isBeingInstantiated()) {
+					vm.setBeingInstantiated(false);
+				}
+				vm.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(vm).getVmScheduler()
+						.getAllocatedMipsForVm(vm));
+			}
+		}
+
 	}
 
 	public void processUpdateProcessing() {
@@ -401,6 +446,7 @@ public class SDNDatacenter extends Datacenter {
 		Activity ac = req.removeNextActivity();
 		ac.setStartTime(CloudSim.clock());
 
+		// FYI see how transmission is simulated ..
 		if(ac instanceof Transmission) {
 			processNextActivityTransmission((Transmission)ac);
 		}
@@ -421,6 +467,7 @@ public class SDNDatacenter extends Datacenter {
 	}
 	
 	private void processNextActivityProcessing(Processing proc, Request reqAfterCloudlet) {
+		// FYI see how cloudlet is used to simulate processing ... See class Processing.java
 		Cloudlet cl = proc.getCloudlet();
 		proc.clearCloudlet();
 		

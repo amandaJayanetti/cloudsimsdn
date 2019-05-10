@@ -5,23 +5,21 @@
  *
  * Copyright (c) 2015, The University of Melbourne, Australia
  */
-package org.cloudbus.cloudsim.sdn.nos;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+package org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager;
 
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
-import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
-import org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager.Task;
+import org.cloudbus.cloudsim.sdn.CloudSimTagsSDN;
+import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
+import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNDatacenter;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.FlowConfig;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
+
+import java.util.*;
 
 /**
  * Simple network operating system class for the example. 
@@ -31,34 +29,42 @@ import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
  * @author Jungmin Son
  * @since CloudSimSDN 1.0
  */
-public class NetworkOperatingSystemSimple extends NetworkOperatingSystem {
+public class NetworkOperatingSystemCustom extends NetworkOperatingSystem {
 
-	public NetworkOperatingSystemSimple(String name) {
+	public NetworkOperatingSystemCustom(String name) {
 		super(name);
 	}
-	public NetworkOperatingSystemSimple() {
+	public NetworkOperatingSystemCustom() {
 		super("NOS");		
 	}
 
 	@Override
 	protected boolean deployApplication(List<Vm> vms, Collection<FlowConfig> links, List<ServiceFunctionChainPolicy> sfcPolicy) {
-		Log.printLine(CloudSim.clock() + ": " + getName() + ": Starting deploying application..");
+		Log.printLine(CloudSim.clock() + ": " + getName() + ": Starting to deploying scientific workflows..");
 
-		// Sort VMs in decending order of the required MIPS
+		// Sort tasks in ascending order of the start time
+        ArrayList<Task> tasks = this.getTaskList();
+        tasks.sort((task1, task2) -> {
+            return (int) (task1.getStartTime() - task2.getStartTime());
+        });
+		deployTasks(tasks);
+
+
+		// Sort VMs in ascending order of the start time
 		Collections.sort(vms, new Comparator<Vm>() {
-		    public int compare(Vm o1, Vm o2) {
-		        return (int) (o2.getMips()*o2.getNumberOfPes() - o1.getMips()*o1.getNumberOfPes());
-		    }
+			public int compare(Vm o1, Vm o2) {
+				return (int) (o2.getMips()*o2.getNumberOfPes() - o1.getMips()*o1.getNumberOfPes());
+			}
 		});
-				
-				
+
+
 		for(Vm vm:vms)
 		{
 			SDNVm tvm = (SDNVm)vm;
 			Log.printLine(CloudSim.clock() + ": " + getName() + ": Trying to Create VM #" + tvm.getId()
 					+ " in " + datacenter.getName() + ", (" + tvm.getStartTime() + "~" +tvm.getFinishTime() + ")");
 			send(datacenter.getId(), tvm.getStartTime(), CloudSimTags.VM_CREATE_ACK, tvm);
-			
+
 			if(tvm.getFinishTime() != Double.POSITIVE_INFINITY) {
 				//System.err.println("VM will be terminated at: "+tvm.getFinishTime());
 				send(datacenter.getId(), tvm.getFinishTime(), CloudSimTags.VM_DESTROY, tvm);
@@ -68,12 +74,29 @@ public class NetworkOperatingSystemSimple extends NetworkOperatingSystem {
 		return true;
 	}
 
-	@Override
 	protected boolean deployTasks(List<Task> tasks) {
-		return false;
+		// Select tasks that have start times falling within the current time partition (For now we'll just select 2 tasks to schedule in each iteration)
+		int MAX_TASKS = 2;
+		int taskCount = 0;
+		List<Task> remainingTasks = tasks;
+
+		Iterator<Task> iter = tasks.iterator();
+
+		while (iter.hasNext()) {
+			Task task = iter.next();
+			if (taskCount < MAX_TASKS) {
+				send(datacenter.getId(), 0.0, CloudSimTagsSDN.TASK_CREATE_ACK, task);
+				iter.remove();
+			} else
+				break;
+			taskCount++;
+		}
+
+		send(this.getId(), 0.0, CloudSimTagsSDN.SCHEDULE_TASKS, remainingTasks);
+		return true;
 	}
 
-	@Override
+		@Override
 	public void processVmCreateAck(SimEvent ev) {
 		super.processVmCreateAck(ev);
 		

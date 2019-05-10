@@ -39,6 +39,15 @@ public class CloudSimTagsSDN {
 	public static final int MONITOR_UPDATE_UTILIZATION = SDN_BASE + 25;
 //	public static final int CHECK_MIGRATION = SDN_BASE + 26;
 
+	/**
+	 * Denotes a request to create a new VMs for a task
+	 */
+	public static final int TASK_CREATE_ACK = SDN_BASE + 26;
+	/**
+	 * Denotes a request to schedule remaining tasks
+	 */
+	public static final int SCHEDULE_TASKS = SDN_BASE + 27;
+
 	private CloudSimTagsSDN() {
 		throw new UnsupportedOperationException("CloudSimTags cannot be instantiated");
 	}

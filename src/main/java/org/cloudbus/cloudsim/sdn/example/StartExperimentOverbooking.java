@@ -132,7 +132,7 @@ public class StartExperimentOverbooking {
 		
 		String policy = args[n++];
 		
-		Configuration.OVERBOOKING_RATIO_INIT = Double.parseDouble(args[n++]);
+//		Configuration.OVERBOOKING_RATIO_INIT = Double.parseDouble(args[n++]);
 
 		setExpName(policy);
 		VmAllocationPolicyEnum vmAllocPolicy = VmAllocationPolicyEnum.valueOf(policy);

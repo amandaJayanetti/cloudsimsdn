@@ -8,14 +8,7 @@
 
 package org.cloudbus.cloudsim.sdn.nos;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.cloudbus.cloudsim.Datacenter;
 import org.cloudbus.cloudsim.Host;
@@ -41,6 +34,7 @@ import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.switches.Switch;
 import org.cloudbus.cloudsim.sdn.policies.selectlink.LinkSelectionPolicy;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.overbooking.OverbookingVmAllocationPolicy;
+import org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager.Task;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunction;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionAutoScaler;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
@@ -69,11 +63,21 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 
 	// Physical topology
 	protected PhysicalTopology topology;
-	
+
 	// Virtual topology
 	protected VirtualNetworkMapper vnMapper = null;
 	protected ChannelManager channelManager = null;
 	protected boolean isApplicationDeployed = false;
+
+	// Keep task requests list in nos
+	private ArrayList<Task> taskList = new ArrayList<>();
+
+	public ArrayList<Task> getTaskList() {
+		return taskList;
+	}
+	public void addTask(Task task) {
+		taskList.add(task);
+	}
 	
 	// Map: Vm ID -> VM
 	protected HashMap<Integer, Vm> vmMapId2Vm = new HashMap<Integer, Vm>();
@@ -104,7 +108,11 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 	 * 3. set routing tables to restrict hops to meet latency
 	 * @param sfcPolicy 
 	 */
+	// FYI note how the child classes override this method
 	protected abstract boolean deployApplication(List<Vm> vms, Collection<FlowConfig> links, List<ServiceFunctionChainPolicy> sfcPolicy);
+
+	protected abstract boolean deployTasks(List<Task> tasks);
+
 
 	public NetworkOperatingSystem(String name) {
 		super(name);
@@ -166,6 +174,9 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 			case CloudSimTags.VM_CREATE_ACK:
 				processVmCreateAck(ev);
 				break;
+			case CloudSimTagsSDN.SCHEDULE_TASKS:
+				deployTasks((ArrayList<Task>)ev.getData());
+				break;
 			case CloudSimTags.VM_DESTROY:
 				processVmDestroyAck(ev);
 				break;
@@ -180,7 +191,8 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 				this.updateBWMonitor(Configuration.monitoringTimeInterval);
 				this.updateHostMonitor(Configuration.monitoringTimeInterval);
 				this.updateSwitchMonitor(Configuration.monitoringTimeInterval);				
-				
+				// FYI how about adding a link power consumption monitor as well?? Maybe that has to be triggered when link usage is simulated via workloads transmission (energy-workload.csv)
+
 				if(CloudSim.clock() >= lastMigration + Configuration.migrationTimeInterval && this.datacenter != null) {
 					sfcScaler.scaleSFC();	// Start SFC Auto Scaling
 					
@@ -278,6 +290,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 
 	public boolean startDeployApplicatoin() {
 		List<Vm> vms = new ArrayList<Vm>(vmMapId2Vm.values());
+		// FYI Check if we will be needing SFC in our work.
 		List<ServiceFunctionChainPolicy> sfcPolicies = new ArrayList<ServiceFunctionChainPolicy>(sfcForwarder.getAllPolicies());
 		boolean result = deployApplication(vms, this.flowMapVmId2Flow.values(), sfcPolicies);
 		
@@ -302,6 +315,12 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		
 		int src = pkt.getOrigin();
 		int dst = pkt.getDestination();
+
+		/* FYI should we calculate the power consumed by the packet transmission here???
+		if (src == dst) {
+			// VMs in same host, so we can ignore power consumption. Otherwise consider??? When we consider power consumed by switches this is automatically taken into account I guess...
+		}
+		*/
 		int flowId = pkt.getFlowId();
 		
 		// Check if VM is removed by auto-scaling
