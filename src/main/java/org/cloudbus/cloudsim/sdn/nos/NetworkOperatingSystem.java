@@ -597,7 +597,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		if(vm != null) {
 			// VM is in this NOS (datacenter)
 			// AMANDAAAAA alter here
-			return (SDNHost)this.datacenter.getVmAllocationPolicy().getHost(vm);
+			return (SDNHost)this.datacenter.getTaskVmAllocationPolicy().getHost(vm);
 		}
 		
 		// VM is in another data center. Find the host!

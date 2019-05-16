@@ -12,7 +12,7 @@ public class PowerUtilizationEnergyModelHostLinear implements PowerUtilizationEn
 	
 	private final static int idleWatt = 120;
 	private final static int workingWattProportional = 154;
-	private final static double powerOffDuration = 0; //3600 if host is idle for longer than 3600 sec (1hr), it's turned off.
+	private final static double powerOffDuration = 3600; //3600 if host is idle for longer than 3600 sec (1hr), it's turned off.
 
 	private double calculatePower(double u) {
 		double power = (double)idleWatt + (double)workingWattProportional * u;

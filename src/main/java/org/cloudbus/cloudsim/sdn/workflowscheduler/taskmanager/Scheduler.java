@@ -99,7 +99,7 @@ public class Scheduler {
             workloads = (List<String>) Arrays.asList(workload_files);
 
 
-        physicalTopologyFile = "dataset-energy/energy-physical.json";
+        physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/physical.json";
         deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/tasks.json";
         workloads = (List<String>) Arrays.asList("src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/workload.csv");
         printArguments(physicalTopologyFile, deploymentFile, workloads);

@@ -104,7 +104,8 @@ public class SDNDatacenter extends Datacenter {
 		
 	@Override
 	protected void processVmCreate(SimEvent ev, boolean ack) {
-		processVmCreateEvent((SDNVm) ev.getData(), ack);
+		// AMANDAAAA commented this out
+		//processVmCreateEvent((SDNVm) ev.getData(), ack);
 		if(ack) {
 			Vm vm = (Vm)ev.getData();
 			send(nos.getId(), 0/*CloudSim.getMinTimeBetweenEvents()*/, CloudSimTags.VM_CREATE_ACK, vm);
@@ -253,6 +254,8 @@ public class SDNDatacenter extends Datacenter {
 				Log.printLine(CloudSim.clock() + ": " + getName() + ": Trying to Create VM #" + vm.getId()
 						+ " in " + this.getName() + ", (" + vm.getStartTime() + "~" + vm.getFinishTime() + ")");
 
+				globalVmDatacenterMap.put(vm.getId(), this);
+
 				getVmList().add(vm);
 				if (vm.isBeingInstantiated()) {
 					vm.setBeingInstantiated(false);
@@ -260,6 +263,7 @@ public class SDNDatacenter extends Datacenter {
 				vm.updateVmProcessing(CloudSim.clock(), getTaskVmAllocationPolicy().getHost(vm).getVmScheduler()
 						.getAllocatedMipsForVm(vm));
 
+				send(this.getId(), vm.getStartTime(), CloudSimTags.VM_CREATE_ACK, vm);
 
 				/*
 				int[] data = new int[3];
@@ -342,7 +346,7 @@ public class SDNDatacenter extends Datacenter {
 			double fileTransferTime = predictFileTransferTime(cl.getRequiredFiles());
 
 			// AMANDAAAA alter here
-			SDNHost host = (SDNHost)getVmAllocationPolicy().getHost(vmId, userId);
+			SDNHost host = (SDNHost)getTaskVmAllocationPolicy().getHost(vmId, userId);
 			Vm vm = host.getVm(vmId, userId);
 			CloudletScheduler scheduler = vm.getCloudletScheduler();
 			
@@ -513,7 +517,7 @@ public class SDNDatacenter extends Datacenter {
 		int vmId = cl.getVmId();
 
 		// AMANDAAAAAA alter this method!!!
-		Host host = getVmAllocationPolicy().getHost(vmId, userId);
+		Host host = getTaskVmAllocationPolicy().getHost(vmId, userId);
 		if(host == null) {
 			Vm orgVm = nos.getSFForwarderOriginalVm(vmId);
 			if(orgVm != null) {

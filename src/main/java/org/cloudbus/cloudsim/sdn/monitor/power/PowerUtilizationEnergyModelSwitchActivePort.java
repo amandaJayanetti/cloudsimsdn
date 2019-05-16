@@ -25,7 +25,8 @@ public class PowerUtilizationEnergyModelSwitchActivePort implements PowerUtiliza
 	public double calculateEnergyConsumption(double duration, double numPorts) {
 		double power = calculatePower(numPorts);
 		double energyConsumption = power * duration;
-		
+
+		// AMANDAAAA is this assumption required for the base case (i.e. we can use this as an improvement in our algorithm so for the base switches aren't turned off) ?????
 		// Assume that the host is turned off when duration is long enough
 		if(duration > powerOffDuration && numPorts == 0)
 			energyConsumption = 0;

@@ -3,11 +3,11 @@
     {
       "task_id":1,
       "workflow_id":1,
-      "endtime":30347.0,
+      "endtime":4400000.0,
       "starttime":0.0,
       "nodes":[
         {
-          "endtime":30347.0,
+          "endtime":3000347.0,
           "starttime":0.0,
           "ram":512,
           "pes":2,
@@ -18,7 +18,7 @@
           "size":1000
         },
         {
-          "endtime":20347.0,
+          "endtime":20000347.0,
           "starttime":0.0,
           "ram":512,
           "pes":8,
@@ -29,7 +29,7 @@
           "size":1000
         },
         {
-          "endtime":4400.0,
+          "endtime":4400000.0,
           "starttime":4300.0,
           "ram":512,
           "pes":8,
@@ -44,11 +44,11 @@
     {
       "task_id":2,
       "workflow_id":1,
-      "endtime":402229.0,
+      "endtime":402990229.0,
       "starttime":121.0,
       "nodes":[
         {
-          "endtime":402229.0,
+          "endtime":402990229.0,
           "starttime":121.0,
           "ram":512,
           "pes":2,
@@ -87,6 +87,31 @@
       "source":"app0",
       "name":"default",
       "destination":"db0"
+    },
+    {
+      "source":"web0",
+      "name":"default",
+      "destination":"app1"
+    },
+    {
+      "source":"app0",
+      "name":"default",
+      "destination":"web1"
+    },
+    {
+      "source":"app1",
+      "name":"default",
+      "destination":"web0"
+    },
+    {
+      "source":"app1",
+      "name":"default",
+      "destination":"app0"
+    },
+    {
+      "source":"web0",
+      "name":"default",
+      "destination":"web0"
     }
   ]
 }
