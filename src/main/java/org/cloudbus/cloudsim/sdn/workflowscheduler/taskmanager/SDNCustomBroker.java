@@ -5,20 +5,17 @@
  *
  * Copyright (c) 2015, The University of Melbourne, Australia
  */
-package org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager;
+package org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager;
 
-import org.cloudbus.cloudsim.Datacenter;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.UtilizationModelFull;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
-import org.cloudbus.cloudsim.core.SimEntity;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.sdn.CloudSimTagsSDN;
 import org.cloudbus.cloudsim.sdn.SDNBroker;
 import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
-import org.cloudbus.cloudsim.sdn.parsers.VirtualTopologyParser;
 import org.cloudbus.cloudsim.sdn.parsers.WorkloadParser;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNDatacenter;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunction;

@@ -6,7 +6,7 @@
  * Copyright (c) 2017, The University of Melbourne, Australia
  */
 
-package org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager;
+package org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;

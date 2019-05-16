@@ -43,6 +43,7 @@ public class CloudSimTagsSDN {
 	 * Denotes a request to create a new VMs for a task
 	 */
 	public static final int TASK_CREATE_ACK = SDN_BASE + 26;
+	public static final int TASK_VM_CREATE_ACK = SDN_BASE + 28;
 	/**
 	 * Denotes a request to schedule remaining tasks
 	 */

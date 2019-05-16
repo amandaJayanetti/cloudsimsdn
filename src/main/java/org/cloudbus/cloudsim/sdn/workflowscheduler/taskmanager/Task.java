@@ -1,4 +1,4 @@
-package org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager;
+package org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager;
 
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
 

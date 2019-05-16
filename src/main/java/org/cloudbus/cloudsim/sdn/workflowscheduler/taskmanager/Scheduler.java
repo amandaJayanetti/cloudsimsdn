@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2015, The University of Melbourne, Australia
  */
-package org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager;
+package org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,7 +59,7 @@ public class Scheduler {
         public VmAllocationPolicy create(List<? extends Host> list);
     }
 
-    enum VmAllocationPolicyEnum {CombLFF, CombMFF, MipLFF, MipMFF, OverLFF, OverMFF, LFF, MFF, Overbooking}
+    enum VmAllocationPolicyEnum {CombLFF, CombMFF, MipLFF, MipMFF, OverLFF, OverMFF, LFF, MFF, Overbooking, ACO}
 
     private static void printUsage() {
         String runCmd = "java SDNExample";
@@ -84,7 +84,7 @@ public class Scheduler {
             policyName = args[0];
         }
 
-        policyName = "MFF";
+        policyName = "ACO";
 
         VmAllocationPolicyEnum vmAllocPolicy = VmAllocationPolicyEnum.valueOf(policyName);
         if (args.length > 1)
@@ -100,8 +100,8 @@ public class Scheduler {
 
 
         physicalTopologyFile = "dataset-energy/energy-physical.json";
-        deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/scientificWorkflowScheduler/datasets/tasks.json";
-        workloads = (List<String>) Arrays.asList("src/main/java/org/cloudbus/cloudsim/sdn/scientificWorkflowScheduler/datasets/workload.csv");
+        deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/tasks.json";
+        workloads = (List<String>) Arrays.asList("src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/workload.csv");
         printArguments(physicalTopologyFile, deploymentFile, workloads);
         Log.printLine("Starting CloudSim SDN...");
 
@@ -117,11 +117,20 @@ public class Scheduler {
             HostFactory hsFac = new HostFactorySimple();
             LinkSelectionPolicy ls = null;
             switch (vmAllocPolicy) {
+                case ACO:
+                    vmAllocationFac = new VmAllocationPolicyFactory() {
+                        public VmAllocationPolicy create(List<? extends Host> hostList) {
+                            return new VmAllocationPolicyToTasks(hostList);
+                        }
+                    };
+                    PhysicalTopologyParser.loadPhysicalTopologySingleDC(physicalTopologyFile, nos, hsFac);
+                    ls = new LinkSelectionPolicyDestinationAddress();
+                    break;
                 case CombMFF:
                 case MFF:
                     vmAllocationFac = new VmAllocationPolicyFactory() {
                         public VmAllocationPolicy create(List<? extends Host> hostList) {
-                            return new VmAllocationPolicyToTasks(hostList);
+                            return new VmAllocationPolicyCombinedMostFullFirst(hostList);
                         }
                     };
                     PhysicalTopologyParser.loadPhysicalTopologySingleDC(physicalTopologyFile, nos, hsFac);

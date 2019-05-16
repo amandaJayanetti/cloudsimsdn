@@ -34,7 +34,7 @@ import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.switches.Switch;
 import org.cloudbus.cloudsim.sdn.policies.selectlink.LinkSelectionPolicy;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.overbooking.OverbookingVmAllocationPolicy;
-import org.cloudbus.cloudsim.sdn.scientificWorkflowScheduler.taskmanager.Task;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Task;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunction;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionAutoScaler;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
@@ -596,7 +596,8 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		Vm vm = findVmLocal(vmId);
 		if(vm != null) {
 			// VM is in this NOS (datacenter)
-			return (SDNHost)this.datacenter.getVmAllocationPolicy().getHost(vm);
+			// AMANDAAAAA altered here
+			return (SDNHost)this.datacenter.getTaskVmAllocationPolicy().getHost(vm);
 		}
 		
 		// VM is in another data center. Find the host!
