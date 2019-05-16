@@ -341,7 +341,8 @@ public class SDNDatacenter extends Datacenter {
 			// time to transfer the files
 			double fileTransferTime = predictFileTransferTime(cl.getRequiredFiles());
 
-			SDNHost host = (SDNHost)getTaskVmAllocationPolicy().getHost(vmId, userId);
+			// AMANDAAAA alter here
+			SDNHost host = (SDNHost)getVmAllocationPolicy().getHost(vmId, userId);
 			Vm vm = host.getVm(vmId, userId);
 			CloudletScheduler scheduler = vm.getCloudletScheduler();
 			
@@ -511,8 +512,8 @@ public class SDNDatacenter extends Datacenter {
 		int userId = cl.getUserId();
 		int vmId = cl.getVmId();
 
-		// AMANDAAAAAA altered this method!!!
-		Host host = getTaskVmAllocationPolicy().getHost(vmId, userId);
+		// AMANDAAAAAA alter this method!!!
+		Host host = getVmAllocationPolicy().getHost(vmId, userId);
 		if(host == null) {
 			Vm orgVm = nos.getSFForwarderOriginalVm(vmId);
 			if(orgVm != null) {
