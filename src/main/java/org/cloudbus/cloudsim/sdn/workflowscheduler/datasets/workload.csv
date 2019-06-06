@@ -2,5 +2,5 @@ start, source, z, w1, link, dest, psize, w2
 0.0,web0,0,1,default,app0,1000000000000000,1
 0.0,web0,0,1,default,web0,1000000000000000,1
 0.0,app0,0,1,default,web1,1000000000000000,1
-0.0,app1,0,1,default,web0,1000000000000000,1
+0.0,web0,0,1,default,app1,1000000000000000,1
 0.0,app1,0,1,default,app0,1000000000000000,1

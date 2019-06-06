@@ -91,8 +91,10 @@ public class NetworkOperatingSystemCustom extends NetworkOperatingSystem {
             taskCount++;
         }
 
-        if (tasks.isEmpty() != true)
+        if (tasks.isEmpty() != true) {
+            // This is to call the deployTasks function again for scheduling remaining tasks
             send(this.getId(), 0.0, CloudSimTagsSDN.SCHEDULE_TASKS, tasks);
+        }
         return true;
     }
 

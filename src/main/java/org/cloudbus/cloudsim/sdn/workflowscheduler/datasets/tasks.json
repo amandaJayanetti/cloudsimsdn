@@ -62,7 +62,7 @@
           "endtime":30347.0,
           "starttime":1200.0,
           "ram":512,
-          "pes":8,
+          "pes":2,
           "name":"app1",
           "bw":100000000,
           "mips":1500,
@@ -81,6 +81,11 @@
     {
       "source":"app0",
       "name":"default",
+      "destination":"web1"
+    },
+    {
+      "source":"app0",
+      "name":"default",
       "destination":"web0"
     },
     {
@@ -92,11 +97,6 @@
       "source":"web0",
       "name":"default",
       "destination":"app1"
-    },
-    {
-      "source":"app0",
-      "name":"default",
-      "destination":"web1"
     },
     {
       "source":"app1",

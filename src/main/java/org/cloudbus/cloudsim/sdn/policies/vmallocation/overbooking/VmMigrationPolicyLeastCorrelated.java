@@ -28,6 +28,13 @@ import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
 public class VmMigrationPolicyLeastCorrelated extends VmMigrationPolicy{
 
 	@Override
+	// AMANDAAA
+	// See how to determine if a host is over-utilized --- CloudSim - org/cloudbus/cloudsim/power/PowerVmAllocationPolicyMigrationStaticThreshold.java:63
+	// If a host is over utilized, select some VMs to be removed from it and relocated. (For example VMs consuming the most MIPS etc.)
+	// Then for the list of the VMs to be relocated, initiate ACO.
+	// When initiating ACO in this case, find out in which hosts the set of VMs connected to each VM in migration list resides. Then intiate ants with these hosts (on which connected VMs are executing) as in the CurrentClique.
+	// Then naturally ACO will try to assign the VMs to connected hosts (Remove the first random selection of host??)
+
 	protected Map<Vm, Host> buildMigrationMap(List<SDNHost> hosts) {
 		Map<Vm, Host> vmToHost = new HashMap<Vm, Host>();
 		

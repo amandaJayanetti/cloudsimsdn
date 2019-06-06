@@ -115,7 +115,8 @@ public abstract class VmMigrationPolicy {
 		}
 		return overHosts;
 	}
-	
+
+	// AMANDAAAA Most Utilized VM calculation...
 	protected List<SDNVm> getMostUtilizedVms(List<SDNHost> hosts) {
 		List<SDNVm> migrationOverVMList = new ArrayList<SDNVm>();
 

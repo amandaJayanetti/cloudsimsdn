@@ -100,21 +100,23 @@ public class SDNVm extends Vm {
 	@Override
 	public double updateVmProcessing(double currentTime, List<Double> mipsShare) {
 		double sumMips = 0;
-		for(double mips:mipsShare)
-			sumMips+= mips;
-		
-		if(getCloudletScheduler() instanceof CloudletSchedulerMonitor) {
-			CloudletSchedulerMonitor cls = (CloudletSchedulerMonitor)getCloudletScheduler();
-			long totalGivenPrevTime = (long)(cls.getTimeSpentPreviousMonitoredTime(currentTime) * sumMips);
-			long totalProcessingPrevTime = cls.getTotalProcessingPreviousTime(currentTime, mipsShare);
-			
-			// Monitoring this VM
-			this.increaseProcessedMIs(totalProcessingPrevTime, totalGivenPrevTime);
-			
-			// Monitoring the host hosting this VM
-			SDNHost sdnhost = (SDNHost) getHost();
-			if(sdnhost != null)
-				sdnhost.increaseProcessedMIs(totalProcessingPrevTime);
+		if (mipsShare != null) {
+			for (double mips : mipsShare)
+				sumMips += mips;
+
+			if (getCloudletScheduler() instanceof CloudletSchedulerMonitor) {
+				CloudletSchedulerMonitor cls = (CloudletSchedulerMonitor) getCloudletScheduler();
+				long totalGivenPrevTime = (long) (cls.getTimeSpentPreviousMonitoredTime(currentTime) * sumMips);
+				long totalProcessingPrevTime = cls.getTotalProcessingPreviousTime(currentTime, mipsShare);
+
+				// Monitoring this VM
+				this.increaseProcessedMIs(totalProcessingPrevTime, totalGivenPrevTime);
+
+				// Monitoring the host hosting this VM
+				SDNHost sdnhost = (SDNHost) getHost();
+				if (sdnhost != null)
+					sdnhost.increaseProcessedMIs(totalProcessingPrevTime);
+			}
 		}
 		
 		return super.updateVmProcessing(currentTime, mipsShare);

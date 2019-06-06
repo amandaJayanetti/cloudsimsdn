@@ -30,6 +30,10 @@ public class PowerUtilizationMonitor {
 		return energyConsumption;
 	}
 
+	public double estimatedPowerConsumptionForPeriod(double duration, double cpuUtilization) {
+		return energyModel.calculateEnergyConsumption(duration, cpuUtilization);
+	}
+
 	public void addPowerConsumptionDuration(double duration, double cpuUtilizationOfLastPeriod) {
 		double energyConsumption = energyModel.calculateEnergyConsumption(duration, cpuUtilizationOfLastPeriod);
 

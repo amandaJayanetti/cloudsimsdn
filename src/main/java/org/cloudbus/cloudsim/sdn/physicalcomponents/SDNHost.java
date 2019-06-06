@@ -20,6 +20,7 @@ import org.cloudbus.cloudsim.VmScheduler;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.provisioners.BwProvisioner;
 import org.cloudbus.cloudsim.provisioners.RamProvisioner;
+import org.cloudbus.cloudsim.sdn.Configuration;
 import org.cloudbus.cloudsim.sdn.LogWriter;
 import org.cloudbus.cloudsim.sdn.VmSchedulerTimeSharedOverSubscriptionDynamicVM;
 import org.cloudbus.cloudsim.sdn.monitor.MonitoringValues;
@@ -346,6 +347,14 @@ public class SDNHost extends Host implements Node {
 		
 		// Also update hosting VMs in this machine
 		updateVmMonitor(timeUnit);
+	}
+
+	public double getEstimatedRiseInPowerConsumptionForNextPeriod(double newMipsToBeProcessed, double duration) {
+		// Duration is how long this VM is likely to be processed in the PM
+		// newMipsToBeProcessed
+		long capacity = (long) (this.getTotalMips() * duration);
+		double increaseInUtilization =  newMipsToBeProcessed / capacity / Consts.MILLION;
+		return powerMonitor.estimatedPowerConsumptionForPeriod(duration, increaseInUtilization);
 	}
 
 	private void updateVmMonitor(double timeUnit) {

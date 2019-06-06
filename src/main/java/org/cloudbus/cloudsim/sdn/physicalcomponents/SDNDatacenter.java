@@ -7,6 +7,7 @@
  */
 package org.cloudbus.cloudsim.sdn.physicalcomponents;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,11 @@ public class SDNDatacenter extends Datacenter {
 	private NetworkOperatingSystem nos;
 	private HashMap<Integer,Request> requestsTable = new HashMap<Integer, Request>();
 	private static HashMap<Integer,Datacenter> globalVmDatacenterMap = new HashMap<Integer, Datacenter>();
-	
+
+	public void setIsMigrateEnabled(boolean isMigrateEnabled) {
+		SDNDatacenter.isMigrateEnabled = isMigrateEnabled;
+	}
+
 	private static boolean isMigrateEnabled = false;
 
 	/** The vm provisioner. */
@@ -205,9 +210,53 @@ public class SDNDatacenter extends Datacenter {
 		Host oldHost = vm.getHost();
 
 		// Migrate the VM to another host.
-		super.processVmMigrate(ev, ack);
-		
+		//super.processVmMigrate(ev, ack);
+		processVmMigrate_(ev, ack);
+
+		// AMANDAAAAAA
 		nos.processVmMigrate(vm, (SDNHost)oldHost, (SDNHost)newHost);
+	}
+
+
+	protected void processVmMigrate_(SimEvent ev, boolean ack) {
+		Object tmp = ev.getData();
+		if (!(tmp instanceof Map<?, ?>)) {
+			throw new ClassCastException("The data object must be Map<String, Object>");
+		}
+
+		@SuppressWarnings("unchecked")
+		Map<String, Object> migrate = (HashMap<String, Object>) tmp;
+
+		Vm vm = (Vm) migrate.get("vm");
+		Host host = (Host) migrate.get("host");
+
+		getTaskVmAllocationPolicy().deallocateHostForVm(vm);
+		host.removeMigratingInVm(vm);
+		boolean result = getTaskVmAllocationPolicy().allocateHostForVm(vm, host);
+		if (!result) {
+			Log.printLine("[Datacenter.processVmMigrate] VM allocation to the destination host failed");
+			System.exit(0);
+		}
+
+		if (ack) {
+			int[] data = new int[3];
+			data[0] = getId();
+			data[1] = vm.getId();
+
+			if (result) {
+				data[2] = CloudSimTags.TRUE;
+			} else {
+				data[2] = CloudSimTags.FALSE;
+			}
+			sendNow(ev.getSource(), CloudSimTags.VM_CREATE_ACK, data);
+		}
+
+		Log.formatLine(
+				"%.2f: Migration of VM #%d to Host #%d is completed",
+				CloudSim.clock(),
+				vm.getId(),
+				host.getId());
+		vm.setInMigration(false);
 	}
 	
 	@Override
@@ -244,11 +293,11 @@ public class SDNDatacenter extends Datacenter {
 
 	protected void processTaskCreate(SimEvent ev, boolean ack) {
 		Task task = (Task) ev.getData();
+		ArrayList<SDNVm> taskVmList = (ArrayList<SDNVm>) task.getInstances();
 
 		boolean result = getTaskVmAllocationPolicy().allocateHostsForTask(task);
 
 		if (result) {
-			List<SDNVm> taskVmList = task.getJobs();
 			for (SDNVm vm : taskVmList) {
 
 				Log.printLine(CloudSim.clock() + ": " + getName() + ": Trying to Create VM #" + vm.getId()
@@ -260,6 +309,7 @@ public class SDNDatacenter extends Datacenter {
 				if (vm.isBeingInstantiated()) {
 					vm.setBeingInstantiated(false);
 				}
+
 				vm.updateVmProcessing(CloudSim.clock(), getTaskVmAllocationPolicy().getHost(vm).getVmScheduler()
 						.getAllocatedMipsForVm(vm));
 
@@ -287,9 +337,8 @@ public class SDNDatacenter extends Datacenter {
 					send(this.getId(), vm.getFinishTime(), CloudSimTags.VM_DESTROY, vm);
 				}
 				*/
-     		}
+			}
 		}
-
 	}
 
 
@@ -542,6 +591,7 @@ public class SDNDatacenter extends Datacenter {
 		if (isMigrateEnabled) {
 			Log.printLine(CloudSim.clock()+": Migration started..");
 
+			// Amandaaa alter here
 			List<Map<String, Object>> migrationMap = getVmAllocationPolicy().optimizeAllocation(
 					getVmList());
 

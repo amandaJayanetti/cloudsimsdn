@@ -182,6 +182,7 @@ public class Scheduler {
             // Create a Datacenter
             SDNDatacenter datacenter = createSDNDatacenter("Datacenter_0", physicalTopologyFile, nos, vmAllocationFac);
 
+            datacenter.setIsMigrateEnabled(true);
             // Broker
             SDNCustomBroker broker = createBroker();
             int brokerId = broker.getId();

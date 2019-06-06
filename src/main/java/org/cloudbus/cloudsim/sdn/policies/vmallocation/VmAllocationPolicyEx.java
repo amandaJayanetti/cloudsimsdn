@@ -101,7 +101,7 @@ public class VmAllocationPolicyEx extends VmAllocationPolicy implements PowerUti
 		migrationBw = new HashMap<String, Long>();
 
 	}
-	
+
 	/*
 	 * (non-Javadoc)
 	 * @see org.cloudbus.cloudsim.VmAllocationPolicy#allocateHostForVm(org.cloudbus.cloudsim.Vm,
@@ -199,7 +199,7 @@ public class VmAllocationPolicyEx extends VmAllocationPolicy implements PowerUti
 		
 		return true;
 	}
-	
+
 	/**
 	 * Creates a migration map that describes which VM to migrate to which host
 	 * (non-Javadoc)
@@ -458,6 +458,48 @@ public class VmAllocationPolicyEx extends VmAllocationPolicy implements PowerUti
 		getUsedBw().put(vm.getUid(), (long) bw);
 
 		return true;
+	}
+
+	public boolean allocateHostForVm____(Vm vm) {
+		int requiredPes = vm.getNumberOfPes();
+		boolean result = false;
+		int tries = 0;
+		List<Integer> freePesTmp = new ArrayList<Integer>();
+		for (Integer freePes : getFreePes()) {
+			freePesTmp.add(freePes);
+		}
+
+		if (!getVmTable().containsKey(vm.getUid())) { // if this vm was not created
+			do {// we still trying until we find a host or until we try all of them
+				int moreFree = Integer.MIN_VALUE;
+				int idx = -1;
+
+				// we want the host with less pes in use
+				for (int i = 0; i < freePesTmp.size(); i++) {
+					if (freePesTmp.get(i) > moreFree) {
+						moreFree = freePesTmp.get(i);
+						idx = i;
+					}
+				}
+
+				Host host = getHostList().get(idx);
+				result = host.vmCreate(vm);
+
+				if (result) { // if vm were succesfully created in the host
+					getVmTable().put(vm.getUid(), host);
+					getUsedPes().put(vm.getUid(), requiredPes);
+					getFreePes().set(idx, getFreePes().get(idx) - requiredPes);
+					result = true;
+					break;
+				} else {
+					freePesTmp.set(idx, Integer.MIN_VALUE);
+				}
+				tries++;
+			} while (!result && tries < getFreePes().size());
+
+		}
+
+		return result;
 	}
 
 	// Reserve resource in the Host for the VM

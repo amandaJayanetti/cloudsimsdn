@@ -267,6 +267,7 @@ public class OverbookingVmAllocationPolicy extends VmAllocationPolicyEx implemen
 		double endTime = CloudSim.clock();
 		double startTime = endTime - Configuration.migrationTimeInterval;
 		for(SDNHost host:hosts) {
+			// FYI --- to identify under load or over load hosts for migration
 			if(host.getMonitoringValuesHostCPUUtilization().getAverageValue(startTime, endTime) < Configuration.UNDERLOAD_THRESHOLD_HOST ){
 				if(host.getMonitoringValuesHostBwUtilization().getAverageValue(startTime, endTime) < Configuration.UNDERLOAD_THRESHOLD_HOST_BW ){
 					underHosts.add(host);

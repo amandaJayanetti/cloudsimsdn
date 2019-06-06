@@ -89,9 +89,6 @@ public class VirtualWorkflowTopologyParser {
 		Iterator<JSONObject> iter = tasks.iterator();
 		while(iter.hasNext()) {
 			JSONObject task = iter.next();
-			Task currTask = new Task((Long) task.get("task_id"), (Long)task.get("workflow_id"), (Double) task.get("starttime"), (Double) task.get("endtime"));
-			// Add task to task list
-			taskList.add(currTask);
 
 			JSONArray nodes = (JSONArray) task.get("nodes");
 			List<SDNVm> taskVmList = new ArrayList<>();
@@ -110,7 +107,7 @@ public class VirtualWorkflowTopologyParser {
 				long bw = 0;
 
 				// Add task to taskVmMap
-				taskVmMap.put(currTask.getTaskId(), nodeName);
+				taskVmMap.put((Long) task.get("task_id"), nodeName);
 
 				if(node.get("bw") != null)
 					bw = (Long) node.get("bw");
@@ -184,7 +181,11 @@ public class VirtualWorkflowTopologyParser {
 					vmNameIdTable.put(nodeName2, vmId);
 				}
 			}
-			currTask.setJobs(taskVmList);
+			//currTask.setInstances(taskVmList);
+			Task currTask = new Task((Long) task.get("task_id"), (Long)task.get("workflow_id"),
+					(Double) task.get("starttime"), (Double) task.get("endtime"), taskVmList);
+			// Add task to task list
+			taskList.add(currTask);
 		}
 
 		return vmNameIdTable;

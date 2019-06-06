@@ -2,25 +2,25 @@
   "nodes":[
     {
       "ram":10240,
-      "pes":16,
+      "pes":4,
       "name":"h_0_0",
-      "bw":1000000000,
-      "mips":4000,
+      "bw":100000000,
+      "mips":2000,
       "type":"host",
-      "storage":10000000
+      "storage":1000
     },
     {
       "ram":10240,
-      "pes":16,
+      "pes":4,
       "name":"h_0_1",
       "bw":1000000000,
-      "mips":4000,
+      "mips":200,
       "type":"host",
-      "storage":10000000
+      "storage":2000
     },
     {
       "ram":10240,
-      "pes":16,
+      "pes":4,
       "name":"h_0_2",
       "bw":1000000000,
       "mips":4000,
@@ -29,12 +29,39 @@
     },
     {
       "ram":10240,
-      "pes":16,
+      "pes":4,
       "name":"h_0_3",
       "bw":1000000000,
       "mips":4000,
       "type":"host",
       "storage":10000000
+    },
+    {
+      "ram":10240,
+      "pes":8,
+      "name":"h_0_4",
+      "bw":100000000,
+      "mips":4000,
+      "type":"host",
+      "storage":10000000
+    },
+    {
+      "ram":10240,
+      "pes":4,
+      "name":"h_0_5",
+      "bw":100000000,
+      "mips":4000,
+      "type":"host",
+      "storage":1000
+    },
+    {
+      "ram":10240,
+      "pes":8,
+      "name":"h_0_6",
+      "bw":100000000,
+      "mips":4000,
+      "type":"host",
+      "storage":1000
     },
     {
       "iops":1000000000,
@@ -126,6 +153,16 @@
     },
     {
       "latency":0.1,
+      "source":"e4",
+      "destination":"h_0_5"
+    },
+    {
+      "latency":0.1,
+      "source":"e5",
+      "destination":"h_0_6"
+    },
+    {
+      "latency":0.1,
       "source":"c",
       "destination":"e0"
     },
@@ -143,6 +180,21 @@
       "latency":0.1,
       "source":"c",
       "destination":"e3"
+    },
+    {
+      "latency":0.1,
+      "source":"c",
+      "destination":"e4"
+    },
+    {
+      "latency":0.1,
+      "source":"c",
+      "destination":"e5"
+    },
+    {
+      "latency":0.1,
+      "source":"e0",
+      "destination":"h_0_4"
     }
   ]
 }

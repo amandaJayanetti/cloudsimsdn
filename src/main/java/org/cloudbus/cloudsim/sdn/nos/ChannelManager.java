@@ -38,7 +38,9 @@ public class ChannelManager {
 		List<Link> links = new ArrayList<Link>();
 		
 		Node origin = srcNode;
-		Node dest = origin.getVMRoute(src, dst, flowId);
+
+		SDNVm srcVm = (SDNVm)NetworkOperatingSystem.findVmGlobal(src);
+		Node dest = ((SDNHost)srcVm.getHost()).getVMRoute(src, dst, flowId); //origin.getVMRoute(src, dst, flowId);
 
 		if(dest==null) {
 			throw new IllegalArgumentException("createChannel(): dest is null, cannot create channel! " +

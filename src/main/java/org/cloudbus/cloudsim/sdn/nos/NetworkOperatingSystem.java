@@ -195,7 +195,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 
 				if(CloudSim.clock() >= lastMigration + Configuration.migrationTimeInterval && this.datacenter != null) {
 					sfcScaler.scaleSFC();	// Start SFC Auto Scaling
-					
+					// AMANDAAAA
 					this.datacenter.startMigrate(); // Start Migration
 					
 					lastMigration = CloudSim.clock(); 
@@ -334,7 +334,9 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		}
 		
 		Channel channel = channelManager.findChannel(src, dst, flowId);
-		if(channel == null) {
+		SDNVm srcVm = (SDNVm)NetworkOperatingSystem.findVmGlobal(src);
+		SDNVm dstVm = (SDNVm)NetworkOperatingSystem.findVmGlobal(dst);
+		if(channel == null && srcVm.getHost() != dstVm.getHost()) {
 			//No channel established. Create a new channel.
 			SDNHost sender = findHost(src);
 			channel = channelManager.createChannel(src, dst, flowId, sender);
@@ -345,6 +347,9 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 				return pkt;
 			}
 			channelManager.addChannel(src, dst, flowId, channel);
+		} else {
+			// Intra host communication does not require a channel
+			return pkt;
 		}
 		
 		channel.addTransmission(new Transmission(pkt));
@@ -518,6 +523,13 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		int dst = pkt.getDestination();
 		int flowId = pkt.getFlowId();
 		Channel channel=channelManager.findChannel(src, dst, flowId);
+
+		SDNVm srcVm = (SDNVm)NetworkOperatingSystem.findVmGlobal(src);
+		SDNVm dstVm = (SDNVm)NetworkOperatingSystem.findVmGlobal(dst);
+		if(channel == null && srcVm.getHost() == dstVm.getHost()) {
+			// Intra host communication does not require a channel
+			return 0;
+		}
 		double bw = channel.getRequestedBandwidth();
 		
 		return bw;
@@ -591,7 +603,8 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 	public static Vm findVmGlobal(int vmId) {
 		return gvmMapId2Vm.get(vmId);
 	}
-	
+
+	// AMANDAAAA this doesn't get updated after vm migration!
 	public SDNHost findHost(int vmId) {
 		Vm vm = findVmLocal(vmId);
 		if(vm != null) {

@@ -20,7 +20,8 @@ import org.cloudbus.cloudsim.sdn.policies.vmallocation.VmMigrationPolicy;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
 
 public class VmMigrationPolicyMostFull extends VmMigrationPolicy {
-	
+
+	// AMANDAAAA see there's more steps to do in Migration...
 	// Build migration map for overloaded hosts and VMs
 	protected Map<Vm, Host> buildMigrationMap(List<SDNHost> hosts) {
 		Map<Vm, Host> vmToHost = new HashMap<Vm, Host>();

@@ -26,15 +26,15 @@ public class Task {
 
     private double finishTime;
 
-    public long getWorkflowId() {
-        return workflowId;
+    public long getJobId() {
+        return jobId;
     }
 
-    public void setWorkflowId(long workflowId) {
-        this.workflowId = workflowId;
+    public void setJobId(long jobId) {
+        this.jobId = jobId;
     }
 
-    private long workflowId;
+    private long jobId;
 
     public long getTaskId() {
         return taskId;
@@ -46,20 +46,21 @@ public class Task {
 
     private long taskId;
 
-    public Task(long taskId, long workflowId, double startTime, double finishTime) {
+    public Task(long taskId, long jobId, double startTime, double finishTime, List<SDNVm> instances) {
         setTaskId(taskId);
-        setWorkflowId(workflowId);
+        setJobId(jobId);
         setFinishTime(finishTime);
         setStartTime(startTime);
+        setInstances(instances);
     }
 
-    public List<SDNVm> getJobs() {
-        return jobs;
+    public List<SDNVm> getInstances() {
+        return instances;
     }
 
-    public void setJobs(List<SDNVm> jobs) {
-        this.jobs = jobs;
+    public void setInstances(List<SDNVm> instances) {
+        this.instances = instances;
     }
 
-    private List<SDNVm> jobs = new ArrayList<SDNVm>();
+    private List<SDNVm> instances = new ArrayList<SDNVm>();
 }
