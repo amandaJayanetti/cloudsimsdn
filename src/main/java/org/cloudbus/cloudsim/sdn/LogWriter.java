@@ -48,7 +48,10 @@ public class LogWriter {
 	}
 	
 	public void printLine(String s) {
-		out.println(s);
+		if (out == null)
+			System.err.println("");
+		else
+			out.println(s);
 	}
 		
 	private PrintStream openfile(String name) {

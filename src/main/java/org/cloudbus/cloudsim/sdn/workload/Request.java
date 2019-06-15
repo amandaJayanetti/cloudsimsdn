@@ -16,7 +16,7 @@ import org.cloudbus.cloudsim.sdn.Packet;
 
 /**
  * Request class represents a message submitted to VM. Each request has a list of activities
- * that should be performed at the VM. (Processing and Transmission)
+ * that should be performed at the VM. (Processing and Transmission)  --- FYI see how transmission and processing both can be modelled in VMs
  *   
  * @author Jungmin Son
  * @author Rodrigo N. Calheiros

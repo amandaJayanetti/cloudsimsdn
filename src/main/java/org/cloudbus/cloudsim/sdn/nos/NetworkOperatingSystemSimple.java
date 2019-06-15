@@ -17,6 +17,7 @@ import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Task;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.FlowConfig;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
@@ -65,7 +66,12 @@ public class NetworkOperatingSystemSimple extends NetworkOperatingSystem {
 		}
 		return true;
 	}
-	
+
+	@Override
+	protected boolean deployTasks(List<Task> tasks) {
+		return false;
+	}
+
 	@Override
 	public void processVmCreateAck(SimEvent ev) {
 		super.processVmCreateAck(ev);
@@ -77,6 +83,7 @@ public class NetworkOperatingSystemSimple extends NetworkOperatingSystem {
 	}
 	
 	private boolean deployFlow(Collection<FlowConfig> arcs) {
+		// FYI I think there's an error here... Because for each VM_CREATE_ACK event NetworkOperatingSystem receives, it deploys the same 1276 arcs again and again... Check if they are vm specific
 		for(FlowConfig arc:arcs) {
 			vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());			
 		}

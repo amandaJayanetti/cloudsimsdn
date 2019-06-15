@@ -39,13 +39,13 @@ public class ChannelManager {
 		
 		Node origin = srcNode;
 		Node dest = origin.getVMRoute(src, dst, flowId);
-		
+
 		if(dest==null) {
 			throw new IllegalArgumentException("createChannel(): dest is null, cannot create channel! " +
 					NetworkOperatingSystem.findVmGlobal(src)+"->" + 
 					NetworkOperatingSystem.findVmGlobal(dst)+"|"+flowId);
 		}
-		
+
 		double lowestBw = Double.POSITIVE_INFINITY;
 		double reqBw = 0;
 		if(flowId != -1) {
