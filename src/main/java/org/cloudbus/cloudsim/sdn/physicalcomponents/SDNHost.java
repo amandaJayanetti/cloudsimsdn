@@ -333,6 +333,7 @@ public class SDNHost extends Host implements Node {
 	
 	public void updateMonitor(double logTime, double timeUnit) {
 		long capacity = (long) (this.getTotalMips() *timeUnit);
+		//double utilization = (double)(this.getTotalMips() - this.getAvailableMips()) / capacity / Consts.MILLION;
 		double utilization = (double)monitoringProcessedMIsPerUnit / capacity / Consts.MILLION;
 		mv.add(utilization, logTime);
 		

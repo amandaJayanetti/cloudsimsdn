@@ -113,7 +113,7 @@ public class SDNDatacenter extends Datacenter {
 		//processVmCreateEvent((SDNVm) ev.getData(), ack);
 		if(ack) {
 			Vm vm = (Vm)ev.getData();
-			send(nos.getId(), 0/*CloudSim.getMinTimeBetweenEvents()*/, CloudSimTags.VM_CREATE_ACK, vm);
+			send(nos.getId(), 0/*CloudSim.getMinTimeBetweenEvents()*/, CloudSimTags.VM_CREATE_ACK, vm); // This event is redundant as there's mo implementation for it
 		}
 	}
 	
@@ -462,6 +462,16 @@ public class SDNDatacenter extends Datacenter {
 				while (vm.getCloudletScheduler().isFinishedCloudlets()) {
 					Cloudlet cl = vm.getCloudletScheduler().getNextFinishedCloudlet();
 					if (cl != null) {
+						if (!Log.isDisabled()) {
+							Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": Cloudlet ",
+									cl.getCloudletId(), " has finished execution on #VM ", vm.getId());
+						}
+						sendNow(cl.getUserId(), CloudSimTags.CLOUDLET_RETURN, cl);
+					}
+
+					// AMANDAAAA commented out here
+					/*
+					if (cl != null) {
 						// For completed cloudlet -> process next activity.
 						Request req = requestsTable.remove(cl.getCloudletId());
 						req.getPrevActivity().setFinishTime(CloudSim.clock());
@@ -474,6 +484,7 @@ public class SDNDatacenter extends Datacenter {
 							processNextActivity(req);
 						}
 					}
+					*/
 				}
 				
 				// Check all failed Cloudlets (time out)
@@ -559,8 +570,9 @@ public class SDNDatacenter extends Datacenter {
 		proc.clearCloudlet();
 		
 		requestsTable.put(cl.getCloudletId(), reqAfterCloudlet);
+		// AMANDAAA if workloads.csv is empty, then the cloudlet thing won't work as well.
 		sendNow(getId(), CloudSimTags.CLOUDLET_SUBMIT, cl);
-		
+
 		// Set the requested MIPS for this cloudlet.
 		int userId = cl.getUserId();
 		int vmId = cl.getVmId();

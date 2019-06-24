@@ -81,7 +81,7 @@
     {
       "source":"app0",
       "name":"default",
-      "destination":"db0"
+      "destination":"web1"
     },
     {
       "source":"app0",
@@ -89,19 +89,29 @@
       "destination":"web0"
     },
     {
-      "source":"web0",
+      "source":"app0",
       "name":"default",
       "destination":"db0"
-    }
+    },
     {
-      "source":"app1",
+      "source":"web0",
       "name":"default",
-      "destination":"web1"
+      "destination":"app1"
     },
     {
       "source":"app1",
       "name":"default",
-      "destination":"web1"
+      "destination":"web0"
+    },
+    {
+      "source":"app1",
+      "name":"default",
+      "destination":"app0"
+    },
+    {
+      "source":"web0",
+      "name":"default",
+      "destination":"web0"
     }
   ]
 }

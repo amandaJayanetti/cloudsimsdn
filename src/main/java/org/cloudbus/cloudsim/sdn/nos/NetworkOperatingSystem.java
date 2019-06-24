@@ -189,6 +189,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 				channelManager.updatePacketProcessing();
 				
 				this.updateBWMonitor(Configuration.monitoringTimeInterval);
+				// AMANDAAA
 				this.updateHostMonitor(Configuration.monitoringTimeInterval);
 				this.updateSwitchMonitor(Configuration.monitoringTimeInterval);				
 				// FYI how about adding a link power consumption monitor as well?? Maybe that has to be triggered when link usage is simulated via workloads transmission (energy-workload.csv)

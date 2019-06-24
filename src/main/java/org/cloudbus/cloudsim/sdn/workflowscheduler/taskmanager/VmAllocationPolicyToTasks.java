@@ -565,7 +565,6 @@ public class VmAllocationPolicyToTasks extends VmAllocationPolicy implements Pow
         taskVmMap.put(task, taskVms);
         jobTaskVMMap.put(task.getJobId(), taskVmMap);
 
-
         List<SDNHost> hostList = getHostList();
         NewAntColonyOptimization antColony = new NewAntColonyOptimization(hostList, taskVms);
         Multimap<SDNHost, SDNVm> allocMap = antColony.startAntOptimization();

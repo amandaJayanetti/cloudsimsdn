@@ -90,6 +90,20 @@ public class CloudletSchedulerSpaceSharedMonitor extends CloudletSchedulerSpaceS
 		return totalProcessedMIs;
 	}
 
+	// AMANDAAA
+	public long getTotalProcessingPreviousTimeOfCPU(double currentTime, List<Double> mipsShare) {
+		long totalProcessedMIs = 0;
+		double timeSpent = currentTime - prevMonitoredTime;
+		double capacity = getCapacity(mipsShare);
+
+		for (ResCloudlet rcl : getCloudletExecList()) {
+			totalProcessedMIs += (long) (capacity * timeSpent * rcl.getNumberOfPes() * Consts.MILLION);
+		}
+
+		prevMonitoredTime = currentTime;
+		return totalProcessedMIs;
+	}
+
 	protected double getCapacity(List<Double> mipsShare) {
 		double capacity = 0.0;
 		int cpus = 0;

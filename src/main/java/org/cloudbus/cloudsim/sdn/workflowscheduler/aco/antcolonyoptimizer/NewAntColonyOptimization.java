@@ -262,6 +262,8 @@ public class NewAntColonyOptimization {
 
         if (candidateHosts.size() == 0) {
             throw new RuntimeException("Could not find a host to assign Vm.");
+            // How about resetting host list to all and re-running aco to find the best Host to queue this task in???? (See my work in the assignment...)
+            // Maybe we could make the whole startAntOptimization throw an exception, so from there a different aco based queuing scheduling method can be devised????
         }
         List<Double> numerators = new ArrayList<>();
         double denominator = 0.0;

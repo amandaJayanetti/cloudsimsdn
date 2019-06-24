@@ -204,7 +204,8 @@ public class SDNCustomBroker extends SDNBroker {
 		Workload wl = requestMap.remove(req.getRequestId());
 		wl.writeResult();
 	}
-	
+
+	// AMANDAAAA follow the logic here.. then manually create and schedule workloads for each VM after ACO...
 	private void applicationSubmitCompleted(SimEvent ev) {
 		for(String filename: this.workloadFileNames) {
 			WorkloadParser wParser = startWorkloadParser(filename);
