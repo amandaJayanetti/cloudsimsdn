@@ -8,6 +8,8 @@
 
 package org.cloudbus.cloudsim.sdn.monitor.power;
 
+import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
+
 public class PowerUtilizationEnergyModelSwitchActivePort implements PowerUtilizationEnergyModel {
 	
 	/* based on CARPO: Correlation-Aware Power Optimization in Data Center Networks by Xiaodong Wang et al. */
@@ -32,5 +34,25 @@ public class PowerUtilizationEnergyModelSwitchActivePort implements PowerUtiliza
 			energyConsumption = 0;
 				
 		return energyConsumption / 3600;
+	}
+
+	@Override
+	public double computeEnergyConsumption(double duration, double utilization, SDNHost host) {
+		return 0;
+	}
+
+	@Override
+	public double computePerformancePerWatt(double mips, SDNHost host){
+		return 0;
+	}
+
+	@Override
+	public double getMaxPPW(SDNHost host) {
+		return 0;
+	}
+
+	@Override
+	public double computeEnergyConsumptionOfWorkload(double duration, double utilization, SDNHost host) {
+		return 0;
 	}
 }

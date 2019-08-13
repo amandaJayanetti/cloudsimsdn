@@ -17,7 +17,7 @@ import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
-import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Task;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Job;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.FlowConfig;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
@@ -68,7 +68,7 @@ public class NetworkOperatingSystemSimple extends NetworkOperatingSystem {
 	}
 
 	@Override
-	protected boolean deployTasks(List<Task> tasks) {
+	protected boolean deployTasks(List<Job> jobs) {
 		return false;
 	}
 

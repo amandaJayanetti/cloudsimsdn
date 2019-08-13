@@ -48,6 +48,8 @@ public class CloudSimTagsSDN {
 	 * Denotes a request to schedule remaining tasks
 	 */
 	public static final int SCHEDULE_TASKS = SDN_BASE + 27;
+	public static final int DEPLOY_TASK_COMM = SDN_BASE + 29;
+	public static final int NEW_TASK_ASSIGN = SDN_BASE + 30;
 
 	private CloudSimTagsSDN() {
 		throw new UnsupportedOperationException("CloudSimTags cannot be instantiated");

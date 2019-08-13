@@ -233,8 +233,8 @@ public class SDNCustomBroker extends SDNBroker {
 				SDNCustomBroker.vmIdToDc.put(vm.getId(), dc);
 			}
 
-			for(Task task:parser.getTaskList()) {
-				nos.addTask(task);
+			for(Job job :parser.getJobList()) {
+				nos.addTask(job);
 			}
 		}
 

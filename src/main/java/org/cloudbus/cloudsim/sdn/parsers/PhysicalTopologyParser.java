@@ -167,7 +167,8 @@ public class PhysicalTopologyParser {
 					////////////////////////////////////////
 					// Host
 					////////////////////////////////////////
-					
+
+					//int clusterId = ((Long) node.get("cluster")).intValue();
 					long pes = (Long) node.get("pes");
 					long mips = (Long) node.get("mips");
 					int ram = new BigDecimal((Long)node.get("ram")).intValueExact();
@@ -181,8 +182,18 @@ public class PhysicalTopologyParser {
 					for(int n = 0; n< num; n++) {
 						String nodeName2 = nodeName;
 						if(num >1) nodeName2 = nodeName + n;
-						
+						// AMANDAAAA
 						SDNHost sdnHost = hostFactory.createHost(ram, bw, storage, pes, mips, nodeName);
+						//sdnHost.setClusterId(clusterId);
+						if (mips == 1000) {
+							sdnHost.setType("Commodity");
+						} else if (mips == 1500) {
+							sdnHost.setType("HPC");
+						} else if (mips == 150) {
+							sdnHost.setType("Micro");
+						} else {
+							sdnHost.setType("HPC");
+						}
 						nameNodeTable.put(nodeName2, sdnHost);
 						//hostId++;
 						

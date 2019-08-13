@@ -8,6 +8,12 @@
 
 package org.cloudbus.cloudsim.sdn.monitor.power;
 
+import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
+
 public interface PowerUtilizationEnergyModel {
 	public abstract double calculateEnergyConsumption(double duration, double utilization);
+	public abstract double computeEnergyConsumption(double duration, double utilization, SDNHost host);
+	public abstract double computeEnergyConsumptionOfWorkload(double duration, double utilization, SDNHost host);
+	public abstract double computePerformancePerWatt(double mips, SDNHost host);
+	public abstract double getMaxPPW(SDNHost host);
 }

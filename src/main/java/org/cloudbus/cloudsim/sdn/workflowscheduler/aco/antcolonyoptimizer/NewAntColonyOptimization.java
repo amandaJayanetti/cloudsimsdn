@@ -118,7 +118,7 @@ public class NewAntColonyOptimization {
         IntStream.range(0, maxIterations)
                 .forEach(i -> {
                     initializeAnts();
-                    setupAnts();
+                    //setupAnts();
                     moveAnts();
                     updateBestTrail();
                     updateTrails();
@@ -244,6 +244,10 @@ public class NewAntColonyOptimization {
             }
         }
 
+
+        // AMANDAAAA ---- IMPORTANT we also need to favor more utilised servers rather than unused ones... so from out of the servers with
+        // highest probability multiply the probability by utilisation percentage
+
         return maxHost;
     }
 
@@ -268,6 +272,21 @@ public class NewAntColonyOptimization {
         List<Double> numerators = new ArrayList<>();
         double denominator = 0.0;
 
+        // If the size of curr clique is zero should use a diff way to assign probabilities such that a server with low power consumption gets selected
+        // For example (ppw of host)/ (ppw of all candidate hosts)
+        if (currClique.size() == 0) {
+            double totalPPW = 0.0;
+            for (SDNHost candidateHost : candidateHosts) {
+                totalPPW += candidateHost.getPerformancePerWatt(candidateHost.getTotalMips(), candidateHost);
+            }
+            for (int i = 0; i < candidateHosts.size(); i++) {
+                SDNHost host = candidateHosts.get(i);
+                double probability = host.getPerformancePerWatt(host.getTotalMips(), host)/ totalPPW;
+                probabilitiesList.put(candidateHosts.get(i), probability);
+            }
+            return;
+        }
+
         for (SDNHost candidateHost : candidateHosts) {
             double individualVal = 0.0;
             for (SDNHost currHost : currClique) {
@@ -275,7 +294,16 @@ public class NewAntColonyOptimization {
                 individualVal += Math.pow(trails[hostList.indexOf(candidateHost)][hostList.indexOf(currHost)], alpha);
             }
             // Multiplying pheromone factor by the heuristic factor which is the inverse of estimated rise in power for a unit of mips to be processed.
-            individualVal *= Math.pow((1.0 / candidateHost.getEstimatedRiseInPowerConsumptionForNextPeriod(1000, 50)), gamma);
+
+            individualVal *= Math.pow(candidateHost.getPerformancePerWatt(candidateHost.getTotalMips(), candidateHost), gamma);
+
+
+            // ***************   //
+            // individualVal *= Math.pow((1.0 / candidateHost.getEstimatedRiseInPowerConsumptionForNextPeriod(1000, 50)), gamma);
+
+            // Multiplying pheromone factor by the heuristic factor which is the inverse of free mips (i.e. capacity). So in this approach hosts that have less capacity will be
+            // favored for successive allocations as well. This was overall host utilisation would improve...
+            //individualVal *= Math.pow((1.0 / candidateHost.getVmScheduler().getAvailableMips()), gamma);
             denominator += individualVal;
             numerators.add(individualVal);
         }

@@ -103,10 +103,11 @@ public class NewAnt {
         long totalAllocBw = allocatedVms.stream().mapToLong(Vm::getCurrentRequestedBw).sum();
         long totalAllocMips = allocatedVms.stream().mapToLong(SDNVm::getTotalMips).sum();
         int totalAllocRam = allocatedVms.stream().mapToInt(Vm::getCurrentRequestedRam).sum();
+        int totalAllocPes = allocatedVms.stream().mapToInt(Vm::getNumberOfPes).sum();
 
         if (host.getStorage() - totalAllocStorage >= vm.getSize() && host.getAvailableBandwidth() - totalAllocBw >= vm.getCurrentRequestedBw()
-                && host.getVmScheduler().getAvailableMips() - totalAllocMips >= vm.getTotalMips() && host.getRamProvisioner().getAvailableRam() - totalAllocRam  >= vm.getCurrentRequestedRam())
-            return true;
+                && host.getVmScheduler().getAvailableMips() - totalAllocMips >= vm.getTotalMips() && host.getNumberOfFreePes() - totalAllocPes > vm.getNumberOfPes() && host.getPeList().get(0).getMips() > vm.getMips() /* // each virtual PE of a VM must require not more than the capacity of a physical PE */ && host.getRamProvisioner().getAvailableRam() - totalAllocRam  >= vm.getCurrentRequestedRam())
+             return true;
         else
             return false;
     }

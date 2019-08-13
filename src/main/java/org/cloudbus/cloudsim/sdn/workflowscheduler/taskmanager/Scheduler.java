@@ -99,8 +99,9 @@ public class Scheduler {
             workloads = (List<String>) Arrays.asList(workload_files);
 
 
-        physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/physical.json";
-        deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/tasks.json";
+        //physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/physical.json";
+        physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/resources.json";
+        deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/alibaba_data.json";
         workloads = (List<String>) Arrays.asList("src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/workload.csv");
         printArguments(physicalTopologyFile, deploymentFile, workloads);
         Log.printLine("Starting CloudSim SDN...");
@@ -181,8 +182,9 @@ public class Scheduler {
 
             // Create a Datacenter
             SDNDatacenter datacenter = createSDNDatacenter("Datacenter_0", physicalTopologyFile, nos, vmAllocationFac);
-
-            datacenter.setIsMigrateEnabled(true);
+            //AMANDAAA enable migrations..
+            // AMANDAAA
+            //datacenter.setIsMigrateEnabled(true);
             // Broker
             SDNCustomBroker broker = createBroker();
             int brokerId = broker.getId();

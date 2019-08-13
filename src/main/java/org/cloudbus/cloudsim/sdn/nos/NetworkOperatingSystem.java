@@ -10,11 +10,7 @@ package org.cloudbus.cloudsim.sdn.nos;
 
 import java.util.*;
 
-import org.cloudbus.cloudsim.Datacenter;
-import org.cloudbus.cloudsim.Host;
-import org.cloudbus.cloudsim.Log;
-import org.cloudbus.cloudsim.Vm;
-import org.cloudbus.cloudsim.VmAllocationPolicy;
+import org.cloudbus.cloudsim.*;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEntity;
@@ -25,6 +21,7 @@ import org.cloudbus.cloudsim.sdn.CloudSimTagsSDN;
 import org.cloudbus.cloudsim.sdn.Configuration;
 import org.cloudbus.cloudsim.sdn.LogWriter;
 import org.cloudbus.cloudsim.sdn.Packet;
+import org.cloudbus.cloudsim.sdn.parsers.WorkloadParser;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.Link;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.Node;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.PhysicalTopology;
@@ -34,7 +31,7 @@ import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.switches.Switch;
 import org.cloudbus.cloudsim.sdn.policies.selectlink.LinkSelectionPolicy;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.overbooking.OverbookingVmAllocationPolicy;
-import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Task;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Job;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunction;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionAutoScaler;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
@@ -44,10 +41,12 @@ import org.cloudbus.cloudsim.sdn.virtualcomponents.FlowConfig;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.Channel;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.VirtualNetworkMapper;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.workloadtransformer.Task;
 import org.cloudbus.cloudsim.sdn.workload.Transmission;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import org.cloudbus.cloudsim.sdn.workload.Workload;
 
 /**
  * NOS calculates and estimates network behaviour. It also mimics SDN Controller functions.  
@@ -60,6 +59,7 @@ import com.google.common.collect.Multimap;
  */
 public abstract class NetworkOperatingSystem extends SimEntity {
 	protected SDNDatacenter datacenter;
+	protected static int mockid = 123456;
 
 	// Physical topology
 	protected PhysicalTopology topology;
@@ -70,13 +70,13 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 	protected boolean isApplicationDeployed = false;
 
 	// Keep task requests list in nos
-	private ArrayList<Task> taskList = new ArrayList<>();
+	private ArrayList<Job> jobList = new ArrayList<>();
 
-	public ArrayList<Task> getTaskList() {
-		return taskList;
+	public ArrayList<Job> getJobList() {
+		return jobList;
 	}
-	public void addTask(Task task) {
-		taskList.add(task);
+	public void addTask(Job job) {
+		jobList.add(job);
 	}
 	
 	// Map: Vm ID -> VM
@@ -111,7 +111,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 	// FYI note how the child classes override this method
 	protected abstract boolean deployApplication(List<Vm> vms, Collection<FlowConfig> links, List<ServiceFunctionChainPolicy> sfcPolicy);
 
-	protected abstract boolean deployTasks(List<Task> tasks);
+	protected abstract boolean deployTasks(List<Job> jobs);
 
 
 	public NetworkOperatingSystem(String name) {
@@ -175,10 +175,13 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 				processVmCreateAck(ev);
 				break;
 			case CloudSimTagsSDN.SCHEDULE_TASKS:
-				deployTasks((ArrayList<Task>)ev.getData());
+				deployTasks((ArrayList<Job>)ev.getData());
 				break;
 			case CloudSimTags.VM_DESTROY:
 				processVmDestroyAck(ev);
+				break;
+			case CloudSimTagsSDN.DEPLOY_TASK_COMM:
+				deployFlows(ev);
 				break;
 			case CloudSimTagsSDN.SDN_VM_CREATE_DYNAMIC_ACK:
 				processVmCreateDynamicAck(ev);
@@ -213,7 +216,9 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 					}
 					
 					long numPackets = channelManager.getTotalNumPackets();
-					
+
+					int noEve = CloudSimEx.getNumFutureEvents();
+
 					System.err.println(CloudSim.clock() + ": Elasped time="+ CloudSimEx.getElapsedTimeString()+", "
 					+CloudSimEx.getNumFutureEvents()+" more events,"+" # packets="+numPackets+", next monitoring in "+nextMonitorDelay);
 					send(this.getId(), nextMonitorDelay, CloudSimTagsSDN.MONITOR_UPDATE_UTILIZATION);
@@ -779,5 +784,75 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 			System.err.print(mv);			
 		}
 	}
-	*/	
+	*/
+
+	public boolean deployFlows(SimEvent ev) {
+		List<SDNVm> taskVmList =(List<SDNVm>)ev.getData();
+
+
+		Task vmTask = datacenter.getTaskVmAllocationPolicy().getTaskIdOfTheInstanceInVm(taskVmList.get(0));
+		ArrayList<Task> predecessorTasks = vmTask.getPredecessorTasks();
+		for (int i = 0; i < predecessorTasks.size(); i++) {
+			Task predecessor = predecessorTasks.get(i);
+			ArrayList<SDNHost> hostList = new ArrayList<>();
+			if (predecessor.getMessageVol() == 0)
+				continue;
+			predecessor.getInstanceHostMap().forEach((instanceVm,host) -> {
+				if (hostList.indexOf(host) == -1)
+					hostList.add(host);
+			});
+
+			WorkloadParser workParser = new WorkloadParser(this.getId(), new UtilizationModelFull(),
+					NetworkOperatingSystem.getVmNameToIdMap(), NetworkOperatingSystem.getFlowNameToIdMap());
+
+			hostList.forEach(host -> {
+				// create a mock vm in the host
+				SDNVm mockVm = new SDNVm(mockid++, taskVmList.get(0).getUserId(),10,1,100,100,100,"VMM", new CloudletSchedulerTimeShared(), 0, 0);
+				mockVm.setHost(host);
+				mockVm.setHostName(host.getName());
+				addVm(mockVm);
+				datacenter.getTaskVmAllocationPolicy().getVmTable().put(mockVm.getUid(), mockVm.getHost());
+
+				taskVmList.forEach(vm -> {
+					FlowConfig arc = new FlowConfig(mockVm.getId(), vm.getId(), -1, 0, 0.0);
+					addFlow(arc);
+					vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());
+					Workload wl = workParser.generateWorkload(mockVm.getId(), vm.getId());
+					sendNow(this.datacenter.getId(), CloudSimTagsSDN.REQUEST_SUBMIT, wl.request);
+				});
+			});
+		}
+
+
+/*
+		for (SDNVm vm : taskVmList) {
+			for (SDNVm vm0 : taskVmList) {
+				if (vm.getId() == vm0.getId())
+					continue;
+				FlowConfig arc = new FlowConfig(vm.getId(), vm0.getId(), -1, 0, 0.0);
+				addFlow(arc);
+				vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());
+			}
+		}
+
+		WorkloadParser workParser = new WorkloadParser(this.getId(), new UtilizationModelFull(),
+				NetworkOperatingSystem.getVmNameToIdMap(), NetworkOperatingSystem.getFlowNameToIdMap());
+
+		for (SDNVm vm : taskVmList) {
+			for (SDNVm vm0 : taskVmList) {
+				if (vm.getId() == vm0.getId())
+					continue;
+
+				FlowConfig arc = new FlowConfig(vm.getId(), vm0.getId(), -1, 0, 0.0);
+				addFlow(arc);
+				vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());
+
+				Workload wl = workParser.generateWorkload(vm.getId(), vm0.getId());
+				sendNow(this.datacenter.getId(), CloudSimTagsSDN.REQUEST_SUBMIT, wl.request);
+			}
+		}
+*/
+
+		return true;
+	}
 }

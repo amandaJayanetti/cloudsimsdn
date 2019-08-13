@@ -115,8 +115,10 @@ public class SDNVm extends Vm {
 
 				// Monitoring the host hosting this VM
 				SDNHost sdnhost = (SDNHost) getHost();
-				if (sdnhost != null)
-					sdnhost.increaseProcessedMIs(totalProcessingPrevTime);
+				if (sdnhost != null){
+                    // Dynamic power consumption due to workload processing is in here...
+                    sdnhost.increaseProcessedMIs(totalProcessingPrevTime);
+                }
 			}
 		}
 		

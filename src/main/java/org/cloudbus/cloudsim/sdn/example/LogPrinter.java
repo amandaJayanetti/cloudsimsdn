@@ -61,13 +61,25 @@ public class LogPrinter {
 		//*/
 		
 		Log.printLine("========== HOST POWER CONSUMPTION based on Actual Workload processing ===========");
+		int unused = 0;
 		for(Host host:hostList) {
 			// Actual workload based power consumption
 			double consumedEnergy = ((SDNHost)host).getConsumedEnergy();
-			Log.printLine("Host #"+host.getId()+": "+consumedEnergy);
-			hostEnergyConsumption+= consumedEnergy;
+			SDNHost host_ = (SDNHost)host;
+
+			Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
+			hostEnergyConsumption += consumedEnergy;
+/*
+			if (host_.isActive()) {
+				Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
+				hostEnergyConsumption += consumedEnergy;
+			} else {
+				unused++;
+			}
+	*/
 		}
-		
+		Log.printLine("Total Energy: " + hostEnergyConsumption);
+		Log.printLine("Unused Hosts: " + unused);
 		Log.printLine("========== SWITCH POWER CONSUMPTION AND DETAILED UTILIZATION ===========");
 		for(Switch sw:switchList) {
 			//sw.addUtilizationEntryTermination(finishTime);
@@ -78,6 +90,7 @@ public class LogPrinter {
 //			printSwitchUtilizationHistory(sw.getUtilizationHisotry());
 
 		}
+		Log.printLine("Switch Total Energy: " + switchEnergyConsumption);
 		Log.printLine("========== HOST Overload percentage ===========");
 		for(Host host:hostList) {
 			// Overloaded time

@@ -61,21 +61,26 @@ import org.json.simple.JSONObject;
  */
 public class PhysicalTopologyGenerator {
 
+	private List<HostSpec> hosts = new ArrayList<HostSpec>();
+	private List<SwitchSpec> switches = new ArrayList<SwitchSpec>();
+	private List<LinkSpec> links = new ArrayList<LinkSpec>();
+
 	public static void main(String [] argv) {
-		startTest();
+		startConst();
 	}
 	
 	public static void startConst() {		
-		String jsonFileName = "physical.fattree.json";
-		
+		//String jsonFileName = "physical.fattree.json";
+		String jsonFileName = "resources.json";
+
 //		int fanout = 2;
-		int numPods = 8;	// Total hosts = (numPods^3)/4
+		int numPods = 12;	// Total hosts = (numPods^3)/4
 		double latency = 0.1;
 		
 		long iops = 1000000000L;
 		
 		int pe = 4;
-		long mips = 400;//8000;
+		long mips = 1000;//8000;
 		int ram = 10240;
 		long storage = 10000000;
 		long bw = 125000000; //125MB = 1Gb
@@ -229,25 +234,25 @@ public class PhysicalTopologyGenerator {
 				c[i][j] = addSwitch("c_"+i+"_"+j, "core", swBw, swIops);
 			}
 		}
-		
-		for(int k=0; k<numpods; k++) {
+
+		for(int k=0; k<4; k++) {
 			SwitchSpec [] e = new SwitchSpec[numpods/2];
 			SwitchSpec [] a = new SwitchSpec[numpods/2];
-			
+
 			for(int i=0; i<numpods/2; i++) {
 				e[i] = addSwitch("e_"+k+"_"+i, "edge", swBw, swIops);
 				a[i] = addSwitch("a_"+k+"_"+i, "aggregate", swBw, swIops);
 				addLink(a[i], e[i], latency);
-				
+
 				for(int j=0; j<i; j++) {
 					addLink(a[i], e[j], latency);
 					addLink(a[j], e[i], latency);
 				}
-				
+
 				for(int j=0; j<numpods/2; j++) {
 					addLink(a[i], c[i][j], latency);
 				}
-				
+
 				for(int j=0; j<numpods/2; j++) {
 					String hostname = "h_" + k+"_"+ i + "_" + j;
 					HostSpec h = addHost(hostname, hostSpec);
@@ -255,11 +260,73 @@ public class PhysicalTopologyGenerator {
 				}
 			}
 		}
+
+		long iops = 1000000000L;
+
+		int pe = 4;
+		long mips = 2000;//8000;
+		int ram = 10240;
+		long storage = 10000000;
+		long bw = 125000000; //125MB = 1Gb
+
+		PhysicalTopologyGenerator reqg = new PhysicalTopologyGenerator();
+		HostSpec hostSpec2 = reqg.createHostSpec(pe, mips, ram, storage, bw);
+
+		for(int k=4; k<8; k++) {
+			SwitchSpec [] e = new SwitchSpec[numpods/2];
+			SwitchSpec [] a = new SwitchSpec[numpods/2];
+
+			for(int i=0; i<numpods/2; i++) {
+				e[i] = addSwitch("e_"+k+"_"+i, "edge", swBw, swIops);
+				a[i] = addSwitch("a_"+k+"_"+i, "aggregate", swBw, swIops);
+				addLink(a[i], e[i], latency);
+
+				for(int j=0; j<i; j++) {
+					addLink(a[i], e[j], latency);
+					addLink(a[j], e[i], latency);
+				}
+
+				for(int j=0; j<numpods/2; j++) {
+					addLink(a[i], c[i][j], latency);
+				}
+
+				for(int j=0; j<numpods/2; j++) {
+					String hostname = "h_" + k+"_"+ i + "_" + j;
+					HostSpec h = addHost(hostname, hostSpec2);
+					addLink(e[i], h, latency);
+				}
+			}
+		}
+
+		mips = 150;
+		HostSpec hostSpec3 = reqg.createHostSpec(pe, mips, ram, storage, bw);
+
+		for(int k=8; k<numpods; k++) {
+			SwitchSpec [] e = new SwitchSpec[numpods/2];
+			SwitchSpec [] a = new SwitchSpec[numpods/2];
+
+			for(int i=0; i<numpods/2; i++) {
+				e[i] = addSwitch("e_"+k+"_"+i, "edge", swBw, swIops);
+				a[i] = addSwitch("a_"+k+"_"+i, "aggregate", swBw, swIops);
+				addLink(a[i], e[i], latency);
+
+				for(int j=0; j<i; j++) {
+					addLink(a[i], e[j], latency);
+					addLink(a[j], e[i], latency);
+				}
+
+				for(int j=0; j<numpods/2; j++) {
+					addLink(a[i], c[i][j], latency);
+				}
+
+				for(int j=0; j<numpods/2; j++) {
+					String hostname = "h_" + k+"_"+ i + "_" + j;
+					HostSpec h = addHost(hostname, hostSpec3);
+					addLink(e[i], h, latency);
+				}
+			}
+		}
 	}
-	
-	private List<HostSpec> hosts = new ArrayList<HostSpec>();
-	private List<SwitchSpec> switches = new ArrayList<SwitchSpec>();
-	private List<LinkSpec> links = new ArrayList<LinkSpec>();
 
 	public HostSpec addHost(String name, HostSpec spec) {
 		HostSpec host = new HostSpec(spec.pe, spec.mips, spec.ram, spec.storage, spec.bw);

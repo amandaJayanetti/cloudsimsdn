@@ -42,9 +42,58 @@ public class SDNHost extends Host implements Node {
 	private ForwardingRule forwardingTable;
 	private RoutingTable routingTable;
 	private int rank = -1;
-	
+
+	public boolean isActive() {
+		return active;
+	}
+
+	public void setActive(boolean active) {
+		this.active = active;
+	}
+
+	private boolean active = false;
+
+	public int getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(int clusterId) {
+		this.clusterId = clusterId;
+	}
+
+	private int clusterId = -1;
+
 	private String name = null;
-	
+
+	public String getType() {
+		return type;
+	}
+
+	public int getBaselineEnergyConsumption() {
+		int energy = 0;
+		switch (this.getType()) {
+			case "Micro":
+				energy = 3;
+				break;
+			case "HPC":
+				energy = 500;
+				break;
+			case "Commodity":
+				energy = 200;
+				break;
+			default:
+				energy = 200;
+				break;
+		}
+		return energy;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
+
+	private String type = null;
+
 	private HashMap<Node, Link> linkToNextHop = new HashMap<Node, Link>();
 
 	public SDNHost(
@@ -342,7 +391,7 @@ public class SDNHost extends Host implements Node {
 		LogWriter log = LogWriter.getLogger("host_utilization.csv");
 		log.printLine(this.getName()+","+logTime+","+utilization);
 		
-		double energy = powerMonitor.addPowerConsumption(logTime, utilization);
+		double energy = powerMonitor.computePowerConsumption(logTime, utilization, this);
 		LogWriter logEnergy = LogWriter.getLogger("host_energy.csv");
 		logEnergy.printLine(this.getName()+","+logTime+","+energy);
 		
@@ -351,12 +400,19 @@ public class SDNHost extends Host implements Node {
 	}
 
 	public double getEstimatedRiseInPowerConsumptionForNextPeriod(double newMipsToBeProcessed, double duration) {
+		// AMANDAAA changed duration logic
+		// time it takes to execute the mis in one core
+		double durationToProcessMIs = newMipsToBeProcessed/(this.getPeList().get(0).getMips());
 		// Duration is how long this VM is likely to be processed in the PM
 		// newMipsToBeProcessed
-		long capacity = (long) (this.getTotalMips() * duration);
+		long capacity = (long) (this.getTotalMips() * durationToProcessMIs);
 		double increaseInUtilization =  newMipsToBeProcessed / capacity / Consts.MILLION;
-		return powerMonitor.estimatedPowerConsumptionForPeriod(duration, increaseInUtilization);
+		return powerMonitor.estimatedPowerConsumptionForPeriod(duration, increaseInUtilization, this);
 	}
+
+    public double getPerformancePerWatt(double mips, SDNHost host) {
+		return powerMonitor.getPerformancePerWatt(mips, host);
+    }
 
 	private void updateVmMonitor(double timeUnit) {
 		for(Vm vm: getVmList()) {

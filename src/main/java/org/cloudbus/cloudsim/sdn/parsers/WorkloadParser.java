@@ -55,7 +55,8 @@ public class WorkloadParser {
 	private WorkloadResultWriter resultWriter = null;
 	
 	private int workloadNum = 0;
-	
+	private static int workloadNum_ = 0;
+
 	private BufferedReader bufReader = null;
 	
 	public WorkloadParser(String file, int userId, UtilizationModel cloudletUtilModel, 
@@ -69,6 +70,19 @@ public class WorkloadParser {
 		String result_file = getResultFileName(this.file);
 		resultWriter = new WorkloadResultWriter(result_file);
 		openFile();
+	}
+
+	public WorkloadParser(int userId, UtilizationModel cloudletUtilModel,
+						  Map<String, Integer> vmNameIdMap, Map<String, Integer> flowNameIdMap) {
+		//this.file = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/workload_.csv";
+		this.userId = userId;
+		this.utilizationModel = cloudletUtilModel;
+		this.vmNames = vmNameIdMap;
+		this.flowNames = flowNameIdMap;
+
+		//String result_file = getResultFileName(this.file);
+		//resultWriter = new WorkloadResultWriter(result_file);
+		//openFile();
 	}
 	
 	public void forceStartTime(double forcedStartTime) {
@@ -225,6 +239,48 @@ public class WorkloadParser {
 //			// TODO Auto-generated catch block
 //			e.printStackTrace();
 //		}
+	}
+
+	public Workload generateWorkload(int srcVmId, int destVmId) {
+		Workload tr = new Workload(workloadNum_++, this.resultWriter);
+		tr.submitVmId = srcVmId;
+
+		tr.submitPktSize = 1;
+
+		Request req = new Request(userId);
+
+		long cloudletLen = 1000000000;
+		cloudletLen*=Configuration.CPU_SIZE_MULTIPLY;
+
+		Cloudlet cl = generateCloudlet(req.getRequestId(), srcVmId, (int) cloudletLen);
+		cl.setVmId(srcVmId);
+		cl.setUserId(4);
+		Processing proc = new Processing(cl);
+		req.addActivity(proc);
+
+
+		String linkName = "default";
+		Integer flowId = this.flowNames.get(linkName);
+
+		int toVmId = destVmId;
+
+		long pktSize = 1000000000;
+		pktSize*=Configuration.NETWORK_PACKET_SIZE_MULTIPLY;
+		if(pktSize<0)
+			pktSize=0;
+
+		Cloudlet cl2 = generateCloudlet(req.getRequestId(), destVmId, (int) cloudletLen);
+		cl2.setVmId(destVmId);
+		cl2.setUserId(4);
+		Processing proc2 = new Processing(cl);
+		Request req2 = new Request(userId);
+		//req2.addActivity(proc2);
+
+		Transmission trans = new Transmission(srcVmId, destVmId, pktSize, flowId, req2);
+		req.addActivity(trans);
+
+		tr.request = req;
+		return tr;
 	}
 	
 	/*

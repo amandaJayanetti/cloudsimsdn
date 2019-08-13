@@ -111,39 +111,42 @@ public class Host extends org.cloudbus.cloudsim.Host {
 	public void addMigratingInVm(Vm vm) {
 		vm.setInMigration(true);
 
+		boolean success = true;
+
 		if (!getVmsMigratingIn().contains(vm)) {
 			if (getStorage() < vm.getSize()) {
 				Log.printConcatLine("[VmScheduler.addMigratingInVm] Allocation of VM #", vm.getId(), " to Host #",
 						getId(), " failed by storage");
-				System.exit(0);
+				success = false;
 			}
 
 			if (!getRamProvisioner().allocateRamForVm(vm, vm.getCurrentRequestedRam())) {
 				Log.printConcatLine("[VmScheduler.addMigratingInVm] Allocation of VM #", vm.getId(), " to Host #",
 						getId(), " failed by RAM");
-				System.exit(0);
+				success = false;
 			}
 
 			if (!getBwProvisioner().allocateBwForVm(vm, vm.getCurrentRequestedBw())) {
 				Log.printLine("[VmScheduler.addMigratingInVm] Allocation of VM #" + vm.getId() + " to Host #"
 						+ getId() + " failed by BW");
-				System.exit(0);
+				success = false;
 			}
 
 			getVmScheduler().getVmsMigratingIn().add(vm.getUid());
 			if (!getVmScheduler().allocatePesForVm(vm, vm.getCurrentRequestedMips())) {
 				Log.printLine("[VmScheduler.addMigratingInVm] Allocation of VM #" + vm.getId() + " to Host #"
 						+ getId() + " failed by MIPS");
-				System.exit(0);
+				success = false;
 			}
 
+			if (success) {
 			setStorage(getStorage() - vm.getSize());
 
 			getVmsMigratingIn().add(vm);
 			getVmList().add(vm);
 			updateVmsProcessing(CloudSim.clock());
 			vm.getHost().updateVmsProcessing(CloudSim.clock());
-		}
+		}}
 	}
 
 	/**

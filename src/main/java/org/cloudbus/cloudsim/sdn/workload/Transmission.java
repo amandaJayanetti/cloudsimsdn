@@ -23,7 +23,7 @@ import org.cloudbus.cloudsim.sdn.Packet;
  * @since CloudSimSDN 1.0
  */
 public class Transmission implements Activity {
-	private Packet pkt = null;
+	private Packet pkt;
 	private long amountToBeProcessed;
 
 	private double requestedBw =0;

@@ -73,35 +73,5 @@
     }
   ],
   "links":[
-    {
-      "source":"web0",
-      "name":"default",
-      "destination":"app0"
-    },
-    {
-      "source":"app0",
-      "name":"default",
-      "destination":"db0"
-    },
-    {
-      "source":"app0",
-      "name":"default",
-      "destination":"web0"
-    },
-    {
-      "source":"web0",
-      "name":"default",
-      "destination":"db0"
-    }
-    {
-      "source":"app1",
-      "name":"default",
-      "destination":"web1"
-    },
-    {
-      "source":"app1",
-      "name":"default",
-      "destination":"web1"
-    }
   ]
 }
