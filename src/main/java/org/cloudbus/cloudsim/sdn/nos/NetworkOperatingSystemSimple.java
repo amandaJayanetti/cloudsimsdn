@@ -73,6 +73,11 @@ public class NetworkOperatingSystemSimple extends NetworkOperatingSystem {
 	}
 
 	@Override
+	protected boolean deployTasksInitial() {
+		return false;
+	}
+
+	@Override
 	public void processVmCreateAck(SimEvent ev) {
 		super.processVmCreateAck(ev);
 		

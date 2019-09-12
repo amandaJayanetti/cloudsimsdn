@@ -7,11 +7,13 @@
  */
 package org.cloudbus.cloudsim.sdn.physicalcomponents.switches;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.sdn.LogWriter;
+import org.cloudbus.cloudsim.sdn.monitor.MonitoringValues;
 import org.cloudbus.cloudsim.sdn.monitor.power.PowerUtilizationEnergyModelSwitchActivePort;
 import org.cloudbus.cloudsim.sdn.monitor.power.PowerUtilizationMonitor;
 import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
@@ -43,8 +45,18 @@ public class Switch implements Node{
 	private HashMap<Node, Link> linkToNextHop = new HashMap<Node, Link>();
 
 	protected ForwardingRule forwardingTable;
-	protected RoutingTable routingTable;	
-	
+	protected RoutingTable routingTable;
+
+	public boolean isActive() {
+		return isActive;
+	}
+
+	public void setActive(boolean active) {
+		isActive = active;
+	}
+
+	protected boolean isActive;
+
 	public Switch(String name, long bw, long iops, int upports, int downports) {
 		address = NodeUtil.assignAddress();
 		
@@ -150,15 +162,16 @@ public class Switch implements Node{
 		return powerMonitor.getTotalEnergyConsumed();
 	}
 	
-	public void updateMonitor(double logTime, double timeUnit) {
+	public double updateMonitor(double logTime, double timeUnit) {
 		updateNetworkUtilization(false); //force update.
 		
 		double totalEnergy = powerMonitor.getTotalEnergyConsumed();
 		double energyPerTimeUnit = totalEnergy - lastTotalEnergy;
 		
-		LogWriter logEnergy = LogWriter.getLogger("sw_energy.csv");
-		logEnergy.printLine(this.getName()+","+logTime+","+energyPerTimeUnit);
+		//LogWriter logEnergy = LogWriter.getLogger("sw_energy.csv");
+		//logEnergy.printLine(this.getName()+","+logTime+","+energyPerTimeUnit);
 		lastTotalEnergy = totalEnergy;
+		return energyPerTimeUnit;
 	}
 	
 	public void updateNetworkUtilization() {
@@ -171,11 +184,26 @@ public class Switch implements Node{
 			return;
 		
 		double currentTime = CloudSim.clock();
-		powerMonitor.addPowerConsumption(currentTime, lastActivePortNum);
+		if (currentPortNum == 0 && this.isActive) {
+            powerMonitor.addPowerConsumption(currentTime, 1);
+        } else
+    		powerMonitor.addPowerConsumption(currentTime, lastActivePortNum);
 		lastActivePortNum = currentPortNum;
 	}
 	
 	private int getCurrentActivePorts() {
+		// AMANDAAAA
+		/*
+		Collection<Link> links = this.topology.getAllLinks();
+		for(Link l:links) {
+			System.err.println(l);
+			MonitoringValues mv = l.getMonitoringValuesLinkUtilizationUp();
+			System.err.print(mv);
+			mv = l.getMonitoringValuesLinkUtilizationDown();
+			System.err.print(mv);
+		}
+*/
+
 		int num = 0;
 		for(Link l:linkToNextHop.values()) {
 			if(l.isActive())

@@ -25,7 +25,7 @@ public class LinkSelectionPolicyBandwidthAllocation implements LinkSelectionPoli
 		int numLinks = links.size();
 		int linkid = dest.getAddress() % numLinks;
 		Link link = links.get(linkid);
-		
+
 		// Choose the least full one.
 		for(Link l:links) {
 			int linkCn = link.getChannelCount(prevNode);

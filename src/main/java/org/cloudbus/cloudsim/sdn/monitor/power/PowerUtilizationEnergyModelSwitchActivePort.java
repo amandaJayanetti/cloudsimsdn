@@ -8,15 +8,16 @@
 
 package org.cloudbus.cloudsim.sdn.monitor.power;
 
+import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 
 public class PowerUtilizationEnergyModelSwitchActivePort implements PowerUtilizationEnergyModel {
 	
 	/* based on CARPO: Correlation-Aware Power Optimization in Data Center Networks by Xiaodong Wang et al. */
 
-	private final static double idleWatt = 66.7;
+	private final static double idleWatt = 66.7; //15.4; // 66.7; // For Alibaba traces we use more powerful switches with higher power consumption (66.7)??
 	private final static double workingWattProportional = 1.0;
-	private final static double powerOffDuration = 0; //3600 if host is idle for longer than 3600 sec (1hr), it's turned off.
+	private final static double powerOffDuration = 0; // if host is idle for longer than 3600 sec (1hr), it's turned off.
 
 	private double calculatePower(double u) {
 		double power = (double)idleWatt + (double)workingWattProportional * u;
@@ -32,6 +33,9 @@ public class PowerUtilizationEnergyModelSwitchActivePort implements PowerUtiliza
 		// Assume that the host is turned off when duration is long enough
 		if(duration > powerOffDuration && numPorts == 0)
 			energyConsumption = 0;
+
+		//if (CloudSim.clock() > 3100)
+		//	energyConsumption = 0;
 				
 		return energyConsumption / 3600;
 	}

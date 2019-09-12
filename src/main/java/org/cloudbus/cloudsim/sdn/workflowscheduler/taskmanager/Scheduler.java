@@ -19,6 +19,7 @@ import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Storage;
 import org.cloudbus.cloudsim.VmAllocationPolicy;
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.cloudbus.cloudsim.sdn.CloudSimEx;
 import org.cloudbus.cloudsim.sdn.HostFactory;
 import org.cloudbus.cloudsim.sdn.HostFactorySimple;
 import org.cloudbus.cloudsim.sdn.SDNBroker;
@@ -100,11 +101,23 @@ public class Scheduler {
 
 
         //physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/physical.json";
-        physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/resources.json";
-        deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/alibaba_data.json";
+        //physicalTopologyFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/resources.json";
+        physicalTopologyFile = "/home/student.unimelb.edu.au/amjayanetti/Documents/Simulators/cloudsimsdn/src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/resources.json";
+
+        //deploymentFile = "/home/student.unimelb.edu.au/amjayanetti/Documents/CLOUDS/LiteratureReview/1_/Workloads/MixedWorkloads";
+        //deploymentFile = "/home/student.unimelb.edu.au/amjayanetti/Documents/CLOUDS/LiteratureReview/1_/Workloads/MixedWorkloadLight";
+        deploymentFile = "/home/student.unimelb.edu.au/amjayanetti/Documents/CLOUDS/LiteratureReview/1_/Workloads/MixedWorkloadMedium";
+        //deploymentFile = "src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/alibaba_data.json";
+        //deploymentFile = "/home/student.unimelb.edu.au/amjayanetti/Documents/Simulators/cloudsimsdn/src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/alibaba_data.json";
+        //deploymentFile = "/home/student.unimelb.edu.au/amjayanetti/Documents/Simulators/cloudsimsdn/src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/workloadtransformer/CyberShake_100.xml";
+
+        //workloads = (List<String>) Arrays.asList("src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/workload.csv");
         workloads = (List<String>) Arrays.asList("src/main/java/org/cloudbus/cloudsim/sdn/workflowscheduler/datasets/workload.csv");
         printArguments(physicalTopologyFile, deploymentFile, workloads);
         Log.printLine("Starting CloudSim SDN...");
+
+        CloudSimEx.setStartTime();
+        Log.printLine("Starting Time ..." + System.currentTimeMillis());
 
         try {
             // Initialize
@@ -219,6 +232,7 @@ public class Scheduler {
 
             Log.printLine("Simultanously used hosts:" + maxHostHandler.getMaxNumHostsUsed());
             Log.printLine("CloudSim SDN finished!");
+            Log.printLine("Finished Time ..." + System.currentTimeMillis());
 
         } catch (Exception e) {
             e.printStackTrace();

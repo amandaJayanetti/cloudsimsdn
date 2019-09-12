@@ -50,6 +50,11 @@ public class CloudSimTagsSDN {
 	public static final int SCHEDULE_TASKS = SDN_BASE + 27;
 	public static final int DEPLOY_TASK_COMM = SDN_BASE + 29;
 	public static final int NEW_TASK_ASSIGN = SDN_BASE + 30;
+	public static final int SDN_VM_CREATE = SDN_BASE + 31;
+	public static final int SDN_ACTIVATE_SWITCHES = SDN_BASE + 32;
+	public static final int SCHEDULE_TASKS_INITIAL = SDN_BASE + 33;
+	public static final int SCHEDULE_MIGRATION = SDN_BASE + 34;
+
 
 	private CloudSimTagsSDN() {
 		throw new UnsupportedOperationException("CloudSimTags cannot be instantiated");

@@ -174,7 +174,10 @@ public class PhysicalTopologyParser {
 					int ram = new BigDecimal((Long)node.get("ram")).intValueExact();
 					long storage = (Long) node.get("storage");
 					long bw = new BigDecimal((Long)node.get("bw")).intValueExact();
-					
+
+					String rackId = (String) node.get("rack");
+					String podId = (String) node.get("pod");
+
 					int num = 1;
 					if (node.get("nums")!= null)
 						num = new BigDecimal((Long)node.get("nums")).intValueExact();
@@ -187,13 +190,17 @@ public class PhysicalTopologyParser {
 						//sdnHost.setClusterId(clusterId);
 						if (mips == 1000) {
 							sdnHost.setType("Commodity");
-						} else if (mips == 1500) {
+						} else if (mips == 2000) {
 							sdnHost.setType("HPC");
 						} else if (mips == 150) {
 							sdnHost.setType("Micro");
 						} else {
 							sdnHost.setType("HPC");
 						}
+
+						sdnHost.setRackId(rackId);
+						sdnHost.setPodId(podId);
+
 						nameNodeTable.put(nodeName2, sdnHost);
 						//hostId++;
 						

@@ -70,6 +70,7 @@ public class Transmission implements Activity {
 		return "Transmission:"+this.pkt.toString();
 	}
 
+	// AMANDAAAA
 	public void setRequestedBW(double bw) {
 		this.requestedBw = bw;
 	}

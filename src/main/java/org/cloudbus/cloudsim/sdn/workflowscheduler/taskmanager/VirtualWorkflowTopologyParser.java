@@ -11,6 +11,7 @@ package org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import org.cloudbus.cloudsim.CloudletScheduler;
+import org.cloudbus.cloudsim.dist.dist.PoissonDistr;
 import org.cloudbus.cloudsim.sdn.CloudletSchedulerSpaceSharedMonitor;
 import org.cloudbus.cloudsim.sdn.Configuration;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunction;
@@ -21,9 +22,19 @@ import org.cloudbus.cloudsim.sdn.workflowscheduler.workloadtransformer.Task;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 
@@ -66,14 +77,23 @@ public class VirtualWorkflowTopologyParser {
         this.userId = userId;
         this.defaultDatacenter = datacenterName;
 
-        parse();
+        // AMANDAAAA
+        //parse();
+        //parseXml();
+
+        try {
+            parseJobs(topologyFileName);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
     }
 
     private void parse() {
 
         try {
             JSONObject doc = (JSONObject) JSONValue.parse(new FileReader(vmsFileName));
-
             Hashtable<String, Integer> vmNameIdTable = parseTasks(doc);
             Hashtable<String, Integer> flowNameIdTable = parseLinks(doc, vmNameIdTable);
             parseSFCPolicies(doc, vmNameIdTable, flowNameIdTable);
@@ -83,20 +103,266 @@ public class VirtualWorkflowTopologyParser {
         }
     }
 
+    private void parseXml() {
+        try {
+            File inputFile = new File(vmsFileName);
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(inputFile);
+            doc.getDocumentElement().normalize();
+
+            Hashtable<String, Integer> vmNameIdTable = parseTasks(doc);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Hashtable<String, Integer> parseTasks(Document doc) {
+        Hashtable<String, Integer> vmNameIdTable = new Hashtable<String, Integer>();
+
+        Job job;
+        String jobId = "Montage--";
+        ArrayList<Task> tasks = new ArrayList<>();
+        NodeList parentNodeList = doc.getElementsByTagName("job");
+        NodeList childNodeList = doc.getElementsByTagName("child");
+
+        // Job Iteration
+        for (int i = 0; i < parentNodeList.getLength(); i++) {
+            Node parentNode = parentNodeList.item(i);
+            Task task = null;
+
+            if (parentNode.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element) parentNode;
+                String name = element.getAttribute("id");
+                int cores = 1;
+                if (element.getAttribute("cores") != "")
+                    cores = Integer.parseInt(element.getAttribute("cores"));
+                double mips_ = Double.parseDouble(element.getAttribute("runtime"));
+                long mips = (long)mips_; // 130; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+                ArrayList<String> predecessors = new ArrayList<>();
+                if (mips > 2000)
+                    mips = 1990;
+
+                task = new Task(name, jobId, 1, 0, 0, 100, cores, 1000, mips, predecessors, 1);
+
+                for (int n = 0; n < 1; n++) {
+                    String nodeName2 = name;
+
+                    CloudletScheduler clSch = new CloudletSchedulerSpaceSharedMonitor(Configuration.TIME_OUT);
+                    //CloudletScheduler clSch = new CloudletSchedulerTimeSharedMonitor(mips);
+                    int vmId = SDNVm.getUniqueVmId();
+                    // Create VM objects
+                    SDNVm vm = new SDNVm(vmId, userId, mips, cores, 100, 1000, 1000, "VMM", clSch, 0, 0);
+                    //SDNVm vm = new SDNVm(vmId, userId, 2000, 2, 512, 100000000, 1000, "VMM", clSch, starttime, endtime);
+                    vm.setName(nodeName2);
+                    vmList.put(this.defaultDatacenter, vm);
+                    task.addInstance(vm);
+                    task.getPendingInstances().add(vm);
+
+                    vmNameIdTable.put(nodeName2, vmId);
+                }
+
+                NodeList fileList = element.getElementsByTagName("uses");
+                Map<String, Long> inFiles = new HashMap<>();
+                Map<String, Long> outFiles = new HashMap<>();
+
+                for (int k = 0; k < fileList.getLength(); k++) {
+                    Node childNode = fileList.item(k);
+                    Element fileEle = (Element) childNode;
+                    String fileName = fileEle.getAttribute("file");
+                    String link = fileEle.getAttribute("link");
+                    Long size = Long.parseLong(fileEle.getAttribute("size"));
+                    if (link.equals("input"))
+                        inFiles.put(fileName, size);
+                    else if (link.equals("output"))
+                        outFiles.put(fileName, size);
+                    task.setInputFiles(inFiles);
+                    task.setOutputFiles(outFiles);
+                }
+
+            }
+            if (task != null)
+                tasks.add(task);
+        }
+
+
+        for (int i = 0; i < childNodeList.getLength(); i++) {
+            Node childNode = childNodeList.item(i);
+            if (childNode.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element) childNode;
+                String name = element.getAttribute("ref");
+
+                Task childTask = null;
+                for (Task task : tasks) {
+                    if (task.getName().equals(name)) {
+                        childTask = task;
+                    }
+                }
+
+                NodeList predecessorList = childNode.getChildNodes();
+                for (int k = 0; k < predecessorList.getLength(); k++) {
+                    if (predecessorList.item(k).getNodeType() == Node.ELEMENT_NODE) {
+                        Element parentEle = (Element) predecessorList.item(k);
+                        String parentName = parentEle.getAttribute("ref");
+                        for (Task task : tasks) {
+                            if (task.getName().equals(parentName)) {
+                                childTask.getPredecessorTasks().add(task);
+                                task.getSuccessorTasks().add(childTask);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        job = new Job(jobId, 0, tasks);
+        jobList.add(job);
+        return vmNameIdTable;
+    }
+
+    private Hashtable<String, Integer> parseJobs(String folderName) throws IOException, SAXException, ParserConfigurationException {
+        Hashtable<String, Integer> vmNameIdTable = new Hashtable<String, Integer>();
+
+        PoissonDistr poisson = null;
+        final long seed=System.currentTimeMillis();
+        poisson = new PoissonDistr(0.4, seed);
+        //customersInAllSimulations += runSimulation.apply(poisson);
+
+        ArrayList<Integer> startTimes = PoissonDistr.getEventTimes(poisson, 3600);
+
+        int idIterator = 0;
+        String jobId = "job_" + idIterator;
+        File path = new File(folderName);
+        File [] files = path.listFiles();
+        int allIns = 0;
+        for (int p = 0; p < files.length; p++) {
+            File inputFile = files[p];
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(inputFile);
+            doc.getDocumentElement().normalize();
+            for (int q = 0; q < 1; q++) {
+            Job job;
+            idIterator++;
+            ArrayList<Task> tasks = new ArrayList<>();
+            NodeList parentNodeList = doc.getElementsByTagName("job");
+            NodeList childNodeList = doc.getElementsByTagName("child");
+
+            // Job Iteration
+            for (int i = 0; i < parentNodeList.getLength(); i++) {
+                    Node parentNode = parentNodeList.item(i);
+                    Task task = null;
+
+                    if (parentNode.getNodeType() == Node.ELEMENT_NODE) {
+                        Element element = (Element) parentNode;
+                        String name = element.getAttribute("id");
+                        int cores = 1;
+                        if (element.getAttribute("cores") != "")
+                            cores = Integer.parseInt(element.getAttribute("cores"));
+                        double mips_ = Double.parseDouble(element.getAttribute("runtime"));
+                        long mips = (long) mips_; // 130; // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+                        ArrayList<String> predecessors = new ArrayList<>();
+                        if (mips > 2000)
+                            mips = 1990;
+
+                        task = new Task(name, jobId, 1, 0, 0, 100, cores, 1000, mips, predecessors, 1);
+
+                        for (int n = 0; n < 1; n++) {
+                            allIns++;
+                            String nodeName2 = name;
+
+                            CloudletScheduler clSch = new CloudletSchedulerSpaceSharedMonitor(Configuration.TIME_OUT);
+                            //CloudletScheduler clSch = new CloudletSchedulerTimeSharedMonitor(mips);
+                            int vmId = SDNVm.getUniqueVmId();
+                            // Create VM objects
+                            SDNVm vm = new SDNVm(vmId, userId, mips, cores, 100, 1000, 1000, "VMM", clSch, 0, 0);
+                            //SDNVm vm = new SDNVm(vmId, userId, 2000, 2, 512, 100000000, 1000, "VMM", clSch, starttime, endtime);
+                            vm.setName(nodeName2);
+                            vmList.put(this.defaultDatacenter, vm);
+                            task.addInstance(vm);
+                            task.getPendingInstances().add(vm);
+
+                            vmNameIdTable.put(nodeName2, vmId);
+                        }
+
+                        NodeList fileList = element.getElementsByTagName("uses");
+                        Map<String, Long> inFiles = new HashMap<>();
+                        Map<String, Long> outFiles = new HashMap<>();
+
+                        for (int k = 0; k < fileList.getLength(); k++) {
+                            Node childNode = fileList.item(k);
+                            Element fileEle = (Element) childNode;
+                            String fileName = fileEle.getAttribute("file");
+                            String link = fileEle.getAttribute("link");
+                            Long size = Long.parseLong(fileEle.getAttribute("size"));
+                            if (link.equals("input"))
+                                inFiles.put(fileName, size);
+                            else if (link.equals("output"))
+                                outFiles.put(fileName, size);
+                            task.setInputFiles(inFiles);
+                            task.setOutputFiles(outFiles);
+                        }
+
+                    }
+                    if (task != null)
+                        tasks.add(task);
+                }
+
+
+                for (int i = 0; i < childNodeList.getLength(); i++) {
+                    Node childNode = childNodeList.item(i);
+                    if (childNode.getNodeType() == Node.ELEMENT_NODE) {
+                        Element element = (Element) childNode;
+                        String name = element.getAttribute("ref");
+
+                        Task childTask = null;
+                        for (Task task : tasks) {
+                            if (task.getName().equals(name)) {
+                                childTask = task;
+                            }
+                        }
+
+                        NodeList predecessorList = childNode.getChildNodes();
+                        for (int k = 0; k < predecessorList.getLength(); k++) {
+                            if (predecessorList.item(k).getNodeType() == Node.ELEMENT_NODE) {
+                                Element parentEle = (Element) predecessorList.item(k);
+                                String parentName = parentEle.getAttribute("ref");
+                                for (Task task : tasks) {
+                                    if (task.getName().equals(parentName)) {
+                                        childTask.getPredecessorTasks().add(task);
+                                        task.getSuccessorTasks().add(childTask);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                job = new Job(jobId, startTimes.get(idIterator), tasks);
+                startTimes.remove(idIterator);
+                jobList.add(job);
+            }
+        }
+        Collections.shuffle(jobList);
+        return vmNameIdTable;
+    }
+
     private Hashtable<String, Integer> parseTasks(JSONObject doc) {
         // vmNameIdTable will have all the VMs from all tasks
         Hashtable<String, Integer> vmNameIdTable = new Hashtable<String, Integer>();
         // Parse tasks
         JSONArray jobs = (JSONArray) doc.get("jobs");
 
+        int noInsAll = 0;
         int no_jobs = 0;
         @SuppressWarnings("unchecked")
         Iterator<JSONObject> iter = jobs.iterator();
         while (iter.hasNext()) {
             // To control the experiment...
             no_jobs ++;
-            if (no_jobs > 100)
-                break;
+            //if (no_jobs > 500)
+              //  break;
 
             JSONObject job = iter.next();
 
@@ -188,9 +454,19 @@ public class VirtualWorkflowTopologyParser {
 
                 //instances = 3;
 
+                Random rand = new Random();
+                int r = rand.nextInt(100);
+                int m = r % 10;
+                if (m < 7)
+                    msgVol = 0; // 10 %
+                else
+                    msgVol = 1; // 90 %
+
+
                 Task newTask = new Task(nodeName, (String) job.get("id"), instances, starttime, endtime, ram, pes, bw, mips, taskPredecessors, msgVol);
 
                 for (int n = 0; n < instances; n++) {
+                    noInsAll++;
                     String nodeName2 = (String) job.get("id") + ":" + nodeName;
                     if (instances > 1) {
                         // Nodename should be numbered.

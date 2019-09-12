@@ -266,7 +266,33 @@ public class Link {
 		double utilization1 = (double)monitoringProcessedBytesPerUnitUp / capacity;
 		mvUp.add(utilization1, logTime);
 		monitoringProcessedBytesPerUnitUp = 0;
-		
+
+		String down = String.valueOf(this.highOrder);
+		String up = String.valueOf(this.lowOrder);
+
+		if (up.substring(0,1).startsWith("h")) {
+			LogWriter log = LogWriter.getLogger("link_utilization_host.csv");
+			log.printLine(this.lowOrder+","+logTime+","+utilization1);
+
+		}
+
+		if (up.split(":")[0].startsWith("S")) {
+			if (up.split(":")[1].trim().startsWith("e")) {
+				LogWriter log = LogWriter.getLogger("link_utilization_edge.csv");
+				log.printLine(this.lowOrder + "," + logTime + "," + utilization1);
+			}
+
+			if (up.split(":")[1].trim().startsWith("a")) {
+				LogWriter log = LogWriter.getLogger("link_utilization_aggregate.csv");
+				log.printLine(this.lowOrder + "," + logTime + "," + utilization1);
+			}
+
+			if (up.split(":")[1].trim().startsWith("c")) {
+				LogWriter log = LogWriter.getLogger("link_utilization_core.csv");
+				log.printLine(this.lowOrder + "," + logTime + "," + utilization1);
+			}
+		}
+
 		LogWriter log = LogWriter.getLogger("link_utilization_up.csv");
 		log.printLine(this.lowOrder+","+logTime+","+utilization1);
 		
@@ -274,7 +300,24 @@ public class Link {
 		mvDown.add(utilization2, logTime);
 		monitoringProcessedBytesPerUnitDown = 0;
 		LogWriter logDown = LogWriter.getLogger("link_utilization_down.csv");
-		logDown.printLine(this.highOrder+","+logTime+","+utilization2);		
+		logDown.printLine(this.highOrder+","+logTime+","+utilization2);
+
+		if (down.split(":")[0].startsWith("S")) {
+			if (down.split(":")[1].trim().startsWith("e")) {
+				log = LogWriter.getLogger("link_utilization_edge.csv");
+				log.printLine(this.highOrder + "," + logTime + "," + utilization2);
+			}
+
+			if (down.split(":")[1].trim().startsWith("a")) {
+				log = LogWriter.getLogger("link_utilization_aggregate.csv");
+				log.printLine(this.highOrder + "," + logTime + "," + utilization2);
+			}
+
+			if (down.split(":")[1].trim().startsWith("c")) {
+				log = LogWriter.getLogger("link_utilization_core.csv");
+				log.printLine(this.highOrder + "," + logTime + "," + utilization2);
+			}
+		}
 		
 		return Double.max(utilization1, utilization2);
 	}

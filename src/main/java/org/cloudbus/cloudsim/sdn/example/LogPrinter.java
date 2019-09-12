@@ -16,10 +16,12 @@ import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.sdn.Configuration;
 import org.cloudbus.cloudsim.sdn.SDNBroker;
 import org.cloudbus.cloudsim.sdn.monitor.power.PowerUtilizationHistoryEntry;
+import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNDatacenter;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.switches.Switch;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.Job;
 import org.cloudbus.cloudsim.sdn.workload.Activity;
 import org.cloudbus.cloudsim.sdn.workload.Processing;
 import org.cloudbus.cloudsim.sdn.workload.Request;
@@ -42,6 +44,14 @@ public class LogPrinter {
 	private static double vmOverTime;
 	private static double vmOverScaleTime;
 
+	public static void printFailedJobs(NetworkOperatingSystem nos) {
+		int n = 0;
+		for (int i = 0; i < nos.getJobList().size(); i++) {
+			if (nos.getHostList().get(i).isFailed())
+				n++;
+		}
+		Log.printLine(" Failed Jobs: " + n);
+	}
 	public static void printEnergyConsumption(List<Host> hostList, List<Switch> switchList, double finishTime) {
 		hostEnergyConsumption= 0; switchEnergyConsumption = 0;hostTotalTime =0; hostOverTime =0; hostOverScaleTime=0;
 		vmTotalTime =0; vmOverTime =0; vmOverScaleTime=0;
@@ -62,11 +72,17 @@ public class LogPrinter {
 		
 		Log.printLine("========== HOST POWER CONSUMPTION based on Actual Workload processing ===========");
 		int unused = 0;
+		int totalHosts = 0;
+		int utilizedHosts = 0;
 		for(Host host:hostList) {
 			// Actual workload based power consumption
 			double consumedEnergy = ((SDNHost)host).getConsumedEnergy();
 			SDNHost host_ = (SDNHost)host;
 
+			if (consumedEnergy != 0.0) {
+				utilizedHosts++;
+			}
+			totalHosts++;
 			Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
 			hostEnergyConsumption += consumedEnergy;
 /*
@@ -78,19 +94,27 @@ public class LogPrinter {
 			}
 	*/
 		}
-		Log.printLine("Total Energy: " + hostEnergyConsumption);
+		//Log.printLine("Total Energy: " + hostEnergyConsumption);
 		Log.printLine("Unused Hosts: " + unused);
-		Log.printLine("========== SWITCH POWER CONSUMPTION AND DETAILED UTILIZATION ===========");
+		//Log.printLine("========== SWITCH POWER CONSUMPTION AND DETAILED UTILIZATION ===========");
+
+		int totalSwitches = 0;
+		int utilizedSwitches = 0;
+
 		for(Switch sw:switchList) {
 			//sw.addUtilizationEntryTermination(finishTime);
 			double energy = sw.getConsumedEnergy();
 			Log.printLine("Switch:"+sw.getName()+": "+energy);
 			switchEnergyConsumption+= energy;
 
+			totalSwitches++;
+			if (energy != 0.0) {
+				utilizedSwitches++;
+			}
 //			printSwitchUtilizationHistory(sw.getUtilizationHisotry());
 
 		}
-		Log.printLine("Switch Total Energy: " + switchEnergyConsumption);
+		Log.printLine("Unused Hosts: " + unused);
 		Log.printLine("========== HOST Overload percentage ===========");
 		for(Host host:hostList) {
 			// Overloaded time
@@ -118,6 +142,13 @@ public class LogPrinter {
 				vmOverScaleTime += overScaleTime;
 			}
 		}
+
+		Log.printLine("Switch Total Energy: " + switchEnergyConsumption);
+		Log.printLine("Switch Total No: " + totalSwitches);
+		Log.printLine("Switch Total Util: " + utilizedSwitches);
+		Log.printLine("Total Server Energy: " + hostEnergyConsumption);
+		Log.printLine("Total Server No: " + totalHosts);
+		Log.printLine("Total Server Util: " + utilizedHosts);
 	}
 	public static void printTotalEnergy() {
 		Log.printLine("========== TOTAL POWER CONSUMPTION ===========");

@@ -73,14 +73,14 @@ public class PhysicalTopologyGenerator {
 		//String jsonFileName = "physical.fattree.json";
 		String jsonFileName = "resources.json";
 
-//		int fanout = 2;
-		int numPods = 12;	// Total hosts = (numPods^3)/4
+		int fanout = 2;
+		int numPods = 5; // 20;	// Total hosts = (numPods^3)/4
 		double latency = 0.1;
 		
 		long iops = 1000000000L;
 		
-		int pe = 4;
-		long mips = 1000;//8000;
+		int pe = 64;
+		long mips = 2000;
 		int ram = 10240;
 		long storage = 10000000;
 		long bw = 125000000; //125MB = 1Gb
@@ -88,8 +88,9 @@ public class PhysicalTopologyGenerator {
 		
 		PhysicalTopologyGenerator reqg = new PhysicalTopologyGenerator();
 		HostSpec hostSpec = reqg.createHostSpec(pe, mips, ram, storage, bw);
-//		reqg.createTreeTopology(hostSpec, iops, bw, fanout, latency);
-		reqg.createTopologyFatTree(hostSpec, iops, bw, numPods, latency);
+		//reqg.createTreeTopology(hostSpec, iops, bw, fanout, latency);
+		reqg.createTopologyFatTreeHomogeneous(hostSpec, iops, bw, numPods, latency);
+		//reqg.createTopologyFatTree(hostSpec, iops, bw, numPods, latency);
 		reqg.wrtieJSON(jsonFileName);
 	}
 	
@@ -235,6 +236,15 @@ public class PhysicalTopologyGenerator {
 			}
 		}
 
+		PhysicalTopologyGenerator reqg = new PhysicalTopologyGenerator();
+		long iops = 1000000000L;
+
+		int pe = 4;
+		long mips = 2000;//8000;
+		int ram = 10240;
+		long storage = 10000000;
+		long bw = 125000000; //125MB = 1Gb
+
 		for(int k=0; k<4; k++) {
 			SwitchSpec [] e = new SwitchSpec[numpods/2];
 			SwitchSpec [] a = new SwitchSpec[numpods/2];
@@ -255,21 +265,18 @@ public class PhysicalTopologyGenerator {
 
 				for(int j=0; j<numpods/2; j++) {
 					String hostname = "h_" + k+"_"+ i + "_" + j;
-					HostSpec h = addHost(hostname, hostSpec);
+					//HostSpec h = addHost(hostname, hostSpec);
+					String rackId = "rack_" + k + "_" + i;
+					String podId = "pod_" + k;
+					HostSpec hostSpecification = reqg.createHostSpec(pe, mips, ram, storage, bw, rackId, podId);
+					HostSpec h = addHostWithLocation(hostname, hostSpecification);
 					addLink(e[i], h, latency);
 				}
 			}
 		}
 
-		long iops = 1000000000L;
+		mips = 1000;//8000;
 
-		int pe = 4;
-		long mips = 2000;//8000;
-		int ram = 10240;
-		long storage = 10000000;
-		long bw = 125000000; //125MB = 1Gb
-
-		PhysicalTopologyGenerator reqg = new PhysicalTopologyGenerator();
 		HostSpec hostSpec2 = reqg.createHostSpec(pe, mips, ram, storage, bw);
 
 		for(int k=4; k<8; k++) {
@@ -292,7 +299,12 @@ public class PhysicalTopologyGenerator {
 
 				for(int j=0; j<numpods/2; j++) {
 					String hostname = "h_" + k+"_"+ i + "_" + j;
-					HostSpec h = addHost(hostname, hostSpec2);
+					//HostSpec h = addHost(hostname, hostSpec2);
+
+					String rackId = "rack_" + k + "_" + i;
+					String podId = "pod_" + k;
+					HostSpec hostSpecification = reqg.createHostSpec(pe, mips, ram, storage, bw, rackId, podId);
+					HostSpec h = addHostWithLocation(hostname, hostSpecification);
 					addLink(e[i], h, latency);
 				}
 			}
@@ -321,7 +333,58 @@ public class PhysicalTopologyGenerator {
 
 				for(int j=0; j<numpods/2; j++) {
 					String hostname = "h_" + k+"_"+ i + "_" + j;
-					HostSpec h = addHost(hostname, hostSpec3);
+					//HostSpec h = addHost(hostname, hostSpec3);
+
+					String rackId = "rack_" + k + "_" + i;
+					String podId = "pod_" + k;
+					HostSpec hostSpecification = reqg.createHostSpec(pe, mips, ram, storage, bw, rackId, podId);
+					HostSpec h = addHostWithLocation(hostname, hostSpecification);
+					addLink(e[i], h, latency);
+				}
+			}
+		}
+	}
+
+	protected void createTopologyFatTreeHomogeneous(HostSpec hostSpec, long swIops, long swBw, int numpods, double latency) {
+		int pe = 8;
+		long mips = 2000;
+		int ram = 10240;
+		long storage = 10000000;
+		long bw = 125000000;
+
+		PhysicalTopologyGenerator reqg = new PhysicalTopologyGenerator();
+
+		SwitchSpec [][] c = new SwitchSpec [numpods/2][numpods/2];
+		for(int i=0; i<numpods/2; i++) {
+			for(int j=0; j<numpods/2; j++) {
+				c[i][j] = addSwitch("c_"+i+"_"+j, "core", swBw, swIops);
+			}
+		}
+
+		for(int k=0; k<numpods; k++) {
+			SwitchSpec [] e = new SwitchSpec[numpods/2];
+			SwitchSpec [] a = new SwitchSpec[numpods/2];
+
+			for(int i=0; i<numpods/2; i++) {
+				e[i] = addSwitch("e_"+k+"_"+i, "edge", swBw, swIops);
+				a[i] = addSwitch("a_"+k+"_"+i, "aggregate", swBw, swIops);
+				addLink(a[i], e[i], latency);
+
+				for(int j=0; j<i; j++) {
+					addLink(a[i], e[j], latency);
+					addLink(a[j], e[i], latency);
+				}
+
+				for(int j=0; j<numpods/2; j++) {
+					addLink(a[i], c[i][j], latency);
+				}
+
+				for(int j=0; j<numpods/2; j++) {
+					String hostname = "h_" + k+"_"+ i + "_" + j;
+					String rackId = "rack_" + k + "_" + i;
+					String podId = "pod_" + k;
+					HostSpec hostSpecification = reqg.createHostSpec(pe, mips, ram, storage, bw, rackId, podId);
+					HostSpec h = addHostWithLocation(hostname, hostSpecification);
 					addLink(e[i], h, latency);
 				}
 			}
@@ -337,6 +400,17 @@ public class PhysicalTopologyGenerator {
 		hosts.add(host);
 		return host;
 	}
+
+	public HostSpec addHostWithLocation(String name, HostSpec spec) {
+		HostSpec host = new HostSpec(spec.pe, spec.mips, spec.ram, spec.storage, spec.bw, spec.rackId, spec.podId);
+
+		host.name = name;
+		host.type = "host";
+
+		hosts.add(host);
+		return host;
+	}
+
 	public HostSpec addHost(String name, int pes, long mips, int ram, long storage, long bw) {
 		HostSpec host = new HostSpec(pes, mips, ram, storage, bw);
 		return addHost(name, host);
@@ -359,6 +433,10 @@ public class PhysicalTopologyGenerator {
 		links.add(new LinkSpec(source.name,dest.name, latency));
 	}
 	
+	public HostSpec createHostSpec(int pe, long mips, int ram, long storage, long bw, String rackId, String podId) {
+		return new HostSpec(pe, mips, ram, storage, bw, rackId, podId);
+	}
+
 	public HostSpec createHostSpec(int pe, long mips, int ram, long storage, long bw) {
 		return new HostSpec(pe, mips, ram, storage, bw);
 	}
@@ -373,6 +451,8 @@ public class PhysicalTopologyGenerator {
 		long mips;
 		int ram;
 		long storage;
+		String rackId;
+		String podId;
 		
 		@SuppressWarnings("unchecked")
 		JSONObject toJSON() {
@@ -385,8 +465,21 @@ public class PhysicalTopologyGenerator {
 			obj.put("mips", o.mips);
 			obj.put("ram", new Integer(o.ram));
 			obj.put("bw", o.bw);
+			obj.put("rack", o.rackId);
+			obj.put("pod", o.podId);
 			return obj;
 		}
+		public HostSpec(int pe, long mips, int ram, long storage, long bw, String rackId, String podId) {
+			this.pe = pe;
+			this.mips = mips;
+			this.ram = ram;
+			this.storage = storage;
+			this.bw = bw;
+			this.type = "host";
+			this.rackId = rackId;
+			this.podId = podId;
+		}
+
 		public HostSpec(int pe, long mips, int ram, long storage, long bw) {
 			this.pe = pe;
 			this.mips = mips;
@@ -394,6 +487,8 @@ public class PhysicalTopologyGenerator {
 			this.storage = storage;
 			this.bw = bw;
 			this.type = "host";
+			this.rackId = rackId;
+			this.podId = podId;
 		}
 	}
 

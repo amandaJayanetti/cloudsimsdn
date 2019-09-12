@@ -69,7 +69,7 @@ Also keep the job_ids in a separate array so later on we can sort it and get the
                     int volume = rand.nextInt(5);
 
                     Task task = new Task(arr[0], nextLine[2], Long.parseLong(nextLine[1]), Long.parseLong(nextLine[5]), Long.parseLong(nextLine[6]),
-                            Double.parseDouble(nextLine[8]), Integer.parseInt(nextLine[7]), 1000, ((Integer.parseInt(nextLine[6]) - Integer.parseInt(nextLine[5])) * 1000)/Integer.parseInt(nextLine[7]), predecessors,
+                            Double.parseDouble(nextLine[8]), Integer.parseInt(nextLine[7]), 1000, (Integer.parseInt(nextLine[6]) - Integer.parseInt(nextLine[5]) * 2000)/Integer.parseInt(nextLine[7]), predecessors,
                             volume);
                     /* (Million Instructions of an instance of the task) /(Million Instructions Per Second Per PE of the machine used by the task) = Time taken for task execution
                         Million Instructions of an instance of the task = Time taken for task execution * (Million Instructions Per Second Per PE of the machine / No of PEs used by the task)

@@ -18,6 +18,26 @@ public class Job {
 
     private double startTime;
 
+    public int getRetries() {
+        return retries;
+    }
+
+    public void setRetries(int retries) {
+        this.retries = retries;
+    }
+
+    private int retries;
+
+    public boolean isFailed() {
+        return failed;
+    }
+
+    public void setFailed(boolean failed) {
+        this.failed = failed;
+    }
+
+    private boolean failed;
+
     public String getJobId() {
         return jobId;
     }
@@ -35,6 +55,8 @@ public class Job {
         setStartTime(startTime);
         setTasks(tasks);
         setPendingTasks(tasks);
+        this.retries = 0;
+        this.failed = false;
     }
 
     public List<Task> getTasks() {

@@ -10,6 +10,7 @@ package org.cloudbus.cloudsim.sdn.monitor.power;
 
 import org.cloudbus.cloudsim.Consts;
 import org.cloudbus.cloudsim.Log;
+import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 
 public class PowerUtilizationEnergyModelHostLinear implements PowerUtilizationEnergyModel {
@@ -89,6 +90,9 @@ public class PowerUtilizationEnergyModelHostLinear implements PowerUtilizationEn
 			energyConsumption = 0;
 		}
 
+		//if (CloudSim.clock() > 3100)
+		//	energyConsumption = 0;
+
 		return energyConsumption / 3600;
 	}
 
@@ -108,7 +112,7 @@ public class PowerUtilizationEnergyModelHostLinear implements PowerUtilizationEn
 	public double computePerformancePerWatt(double mips, SDNHost host) {
 		// Max PPW = max MIPS/max power --- at max utilization u is 1
 		String type = host.getType();
-		double u = 1;
+		double u = mips/host.getTotalMips();
 		double power = 0.0;
 		switch(type) {
 			case "Commodity":
@@ -123,7 +127,7 @@ public class PowerUtilizationEnergyModelHostLinear implements PowerUtilizationEn
 			default:
 				power = (double) idleWatt + (double) workingWattProportional * u;
 		}
-		return host.getTotalMips()/power;
+		return mips/power;
 		/*
 		String type = host.getType();
 		double ppw = 0.0;

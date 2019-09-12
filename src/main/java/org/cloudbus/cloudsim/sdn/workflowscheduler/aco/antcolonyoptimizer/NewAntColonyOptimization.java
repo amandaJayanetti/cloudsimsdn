@@ -1,12 +1,15 @@
 package org.cloudbus.cloudsim.sdn.workflowscheduler.aco.antcolonyoptimizer;
 
 import com.google.common.collect.Multimap;
+import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.Link;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.Node;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.policies.selectlink.LinkSelectionPolicy;
 import org.cloudbus.cloudsim.sdn.policies.selectlink.LinkSelectionPolicyBandwidthAllocation;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.taskmanager.VmAllocationPolicyToTasks;
+import org.cloudbus.cloudsim.sdn.workflowscheduler.workloadtransformer.Task;
 
 import java.util.*;
 import java.util.stream.IntStream;
@@ -20,9 +23,10 @@ public class NewAntColonyOptimization {
     private double antFactor = 0.8;
     private double randomFactor = 0.01;
 
-    private int maxIterations = 1;
+    private int maxIterations = 3;
 
     private int numberOfHosts;
+    private Task task;
     private int numberOfAnts;
     private double graph[][];
     private double trails[][];
@@ -37,12 +41,14 @@ public class NewAntColonyOptimization {
     private ArrayList<Integer> bestTourOrderOverall;
     private double bestTourLengthOverall;
     private Multimap<SDNHost, SDNVm> bestAllocationPlan;
+    private VmAllocationPolicyToTasks policy;
 
-    public NewAntColonyOptimization(List<SDNHost> hostList, List<SDNVm> vmList) {
+    public NewAntColonyOptimization(List<SDNHost> hostList, List<SDNVm> vmList, VmAllocationPolicyToTasks policy) {
         this.hostList = hostList;
-        graph = generateHostMatrix(hostList);
+        graph = policy.getHostMatrix();
         numberOfHosts = graph.length;
         numberOfAnts = (int) (numberOfHosts * antFactor);
+        this.policy = policy;
 
         trails = new double[numberOfHosts][numberOfHosts];
         this.vmList = vmList;
@@ -58,13 +64,14 @@ public class NewAntColonyOptimization {
                 });
     }
 
-    public NewAntColonyOptimization(List<SDNHost> hostList, List<SDNHost> elibibleHosts, List<SDNVm> vmList, List<SDNHost> currentClique) {
+    public NewAntColonyOptimization(List<SDNHost> hostList, List<SDNHost> eligibleHosts, List<SDNVm> vmList, List<SDNHost> currentClique, VmAllocationPolicyToTasks policy) {
         this.hostList = hostList;
-        // Need to keep copies of current clique and elibible hosts since we need these details in function initializeAntsWithPartialState for initializing ants in each new iteration
+        // Need to keep copies of current clique and eligible hosts since we need these details in function initializeAntsWithPartialState for initializing ants in each new iteration
         this.currClique = currentClique;
-        this.eligibleHosts = elibibleHosts;
+        this.eligibleHosts = eligibleHosts;
 
-        graph = generateHostMatrix(hostList);
+        this.policy = policy;
+        graph = policy.getHostMatrix();
         numberOfHosts = graph.length;
         numberOfAnts = (int) (numberOfHosts * antFactor);
 
@@ -81,24 +88,10 @@ public class NewAntColonyOptimization {
             currentClique.forEach(host -> {
                 currSelectedHosts.add(host);
             });
-            ants.add(new NewAnt(numberOfHosts, taskVms, hostList, elibibleHosts, currSelectedHosts));
+            ants.add(new NewAnt(numberOfHosts, taskVms, hostList, eligibleHosts, currSelectedHosts));
         }
-    }
 
-    /**
-     * Initialize host matrix based on the number of hops between hosts
-     */
-    public double[][] generateHostMatrix(List<SDNHost> hostList) {
-        int numHosts = hostList.size();
-        // hostMatrix stores minimum network hops from every host to every other host
-        double[][] hostMatrix = new double[numHosts][numHosts];
-        LinkSelectionPolicy linkSelector = new LinkSelectionPolicyBandwidthAllocation();
-
-        IntStream.range(0, numHosts).forEach(i -> IntStream.range(0, numHosts).forEach(j -> {
-            hostMatrix[i][j] = computeMinNetworkHops(linkSelector, hostList.get(i), hostList.get(j), 0);
-        }));
-
-        return hostMatrix;
+        this.task = policy.getTaskIdOfTheInstanceInVm(vmList.get(0));
     }
 
     protected double computeMinNetworkHops(LinkSelectionPolicy linkSelector, Node src, Node dest, double noHops) {
@@ -225,7 +218,7 @@ public class NewAntColonyOptimization {
                     .filter(i -> i == finalRandIndex)
                     .findFirst();
             if (cityIndex.isPresent()) {
-                return hostList.get(cityIndex.getAsInt());
+                //return hostList.get(cityIndex.getAsInt());
             }
         }
 
@@ -262,7 +255,7 @@ public class NewAntColonyOptimization {
             // Since normal copying of of arraylists pass by reference
             candidateHosts.add(host);
         });
-        candidateHosts.removeAll(currClique);
+        //candidateHosts.removeAll(currClique);
 
         if (candidateHosts.size() == 0) {
             throw new RuntimeException("Could not find a host to assign Vm.");
@@ -272,46 +265,66 @@ public class NewAntColonyOptimization {
         List<Double> numerators = new ArrayList<>();
         double denominator = 0.0;
 
-        // If the size of curr clique is zero should use a diff way to assign probabilities such that a server with low power consumption gets selected
-        // For example (ppw of host)/ (ppw of all candidate hosts)
+        double denominatorRes = 0.0;
+        for (SDNHost candidateHost : candidateHosts) {
+            double mipsFreePercent = (candidateHost.getTotalMips() - candidateHost.getVmList().stream().mapToDouble(Vm::getMips).sum()) / policy.getHostTotalMips();
+            double bwFreePercent = (candidateHost.getBandwidth() - candidateHost.getVmList().stream().mapToLong(Vm::getCurrentRequestedBw).sum()) / policy.getHostTotalBw();
+            candidateHost.setFreeResourcePercentage(policy.convertWeightedMetric(mipsFreePercent, bwFreePercent));
+            denominatorRes += 1/(candidateHost.getFreeResourcePercentage()+0.00001);
+        }
+
+
+        // If the size of curr clique is zero should use a diff way to assign probabilities such that a server with highest utilization/lowest power consumption gets selected
         if (currClique.size() == 0) {
-            double totalPPW = 0.0;
-            for (SDNHost candidateHost : candidateHosts) {
-                totalPPW += candidateHost.getPerformancePerWatt(candidateHost.getTotalMips(), candidateHost);
-            }
             for (int i = 0; i < candidateHosts.size(); i++) {
                 SDNHost host = candidateHosts.get(i);
-                double probability = host.getPerformancePerWatt(host.getTotalMips(), host)/ totalPPW;
+                double probability = (1/host.getFreeResourcePercentage())/ denominatorRes;
                 probabilitiesList.put(candidateHosts.get(i), probability);
             }
             return;
         }
 
+
         for (SDNHost candidateHost : candidateHosts) {
-            double individualVal = 0.0;
+            double phermoneFactor = 0.0;
             for (SDNHost currHost : currClique) {
                 // Pheromone trail (from candidate host to all the hosts in the current clique)
-                individualVal += Math.pow(trails[hostList.indexOf(candidateHost)][hostList.indexOf(currHost)], alpha);
+                phermoneFactor += Math.pow(1/(trails[hostList.indexOf(candidateHost)][hostList.indexOf(currHost)] + 0.000001), 0); // to address phermone zero case
             }
             // Multiplying pheromone factor by the heuristic factor which is the inverse of estimated rise in power for a unit of mips to be processed.
+            double heuristicFactor = 0.0;
+            double totalHops = 0.0;
+            double resUtil = 0.0;
+            for (SDNHost currHost : currClique) {
+                // Distance from candidate host to all the other hosts
+                totalHops += (1/(computeMinNetworkHops(new LinkSelectionPolicyBandwidthAllocation(), candidateHost, currHost, 0) + 0.000001));
+            }
 
-            individualVal *= Math.pow(candidateHost.getPerformancePerWatt(candidateHost.getTotalMips(), candidateHost), gamma);
+            resUtil = 1/candidateHost.getFreeResourcePercentage();
+            heuristicFactor =  1000 * totalHops + resUtil; // Could use addition or multiplication here...
+            heuristicFactor = Math.pow(heuristicFactor, 2);
+
+            double numerator = heuristicFactor * phermoneFactor;
 
 
             // ***************   //
-            // individualVal *= Math.pow((1.0 / candidateHost.getEstimatedRiseInPowerConsumptionForNextPeriod(1000, 50)), gamma);
+            // phermoneFactor *= Math.pow((1.0 / candidateHost.getEstimatedRiseInPowerConsumptionForNextPeriod(1000, 50)), gamma);
 
             // Multiplying pheromone factor by the heuristic factor which is the inverse of free mips (i.e. capacity). So in this approach hosts that have less capacity will be
             // favored for successive allocations as well. This was overall host utilisation would improve...
-            //individualVal *= Math.pow((1.0 / candidateHost.getVmScheduler().getAvailableMips()), gamma);
-            denominator += individualVal;
-            numerators.add(individualVal);
+            //phermoneFactor *= Math.pow((1.0 / candidateHost.getVmScheduler().getAvailableMips()), gamma);
+            denominator += numerator;
+            if (task.getBlacklist().indexOf(candidateHost) != -1)
+                numerators.add(0.0);
+            else
+                numerators.add(numerator);
         }
 
         for (int i = 0; i < candidateHosts.size(); i++) {
             double probability = numerators.get(i) / denominator;
             probabilitiesList.put(candidateHosts.get(i), probability);
         }
+
     }
 
     /**
@@ -371,6 +384,7 @@ public class NewAntColonyOptimization {
 
     }
 
+    //how to compute the cost of a solution??
 
     /**
      * Clear trails after simulation

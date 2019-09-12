@@ -14,6 +14,8 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.sdn.CloudSimTagsSDN;
+import org.cloudbus.cloudsim.sdn.CloudletSchedulerSpaceSharedMonitor;
+import org.cloudbus.cloudsim.sdn.Configuration;
 import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.sfc.ServiceFunctionChainPolicy;
@@ -34,8 +36,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class NetworkOperatingSystemCustom extends NetworkOperatingSystem {
 
-    private static int LAST_SCHEDULED_TIME = 86400;
+    private static int LAST_SCHEDULED_TIME = 86400; // 0; //86400; //90000;
     private static Multimap<Integer, SDNHost> serverClusters;
+    private static Map<SDNVm, SDNHost> occupancyServerVmMap;
+    private static ArrayList<SDNVm> vmListForOccupancy = new ArrayList<>();
+    private static ArrayList<Job> sortedJobs = new ArrayList<>();
+    private static int vmId = 0;
 
     private void setServerClusters ()
     {
@@ -63,16 +69,20 @@ public class NetworkOperatingSystemCustom extends NetworkOperatingSystem {
     protected boolean deployApplication(List<Vm> vms, Collection<FlowConfig> links, List<ServiceFunctionChainPolicy> sfcPolicy) {
         Log.printLine(CloudSim.clock() + ": " + getName() + ": Starting to deploying scientific workflows..");
 
-        setServerClusters();
+        //setServerClusters();
 
         // Sort jobs in ascending order of the start time
         ArrayList<Job> jobs = this.getJobList();
         Collections.sort(jobs, new Comparator<Job>() {
             public int compare(Job o1, Job o2) {
-                return (int) (o2.getStartTime() - o1.getStartTime());
+                return (int) (o1.getStartTime() - o2.getStartTime());
             }
         });
+
+        //jobs = new ArrayList<>(jobs.subList(0, 1000));
         deployTasks(jobs);
+        sortedJobs = jobs;
+       //createDatacenterOccupancy();
 
         /*
         jobs.sort((task1, task2) -> {
@@ -104,39 +114,150 @@ public class NetworkOperatingSystemCustom extends NetworkOperatingSystem {
         return true;
     }
 
-    protected boolean deployTasks(List<Job> jobs) {
+    protected void createDatacenterOccupancy() {
+        CloudletScheduler clSch = new CloudletSchedulerSpaceSharedMonitor(Configuration.TIME_OUT);
+        for (int i = 0; i < 100; i++) {
+            SDNVm vm = new SDNVm(vmId++, 4,500,3,100,100,1000,"VMM",  clSch, 0, 0);
+            vmListForOccupancy.add(vm);
+        }
+        sendNow(datacenter.getId(), CloudSimTagsSDN.SDN_VM_CREATE, vmListForOccupancy);
+    }
+
+    @Override
+    protected boolean deployTasksInitial() {
         // Select jobs that have start times falling within the current time partition (For now we'll just select 2 jobs to schedule in each iteration)
-
-
         /*
             1. Select jobs that fall within the current time partition (Maintain a static current time variable (LAST_SCHEDULED_TIME)
              and append 100s to it to get the end_time. start_time would be the static variable's value
             2. Include the tasks of all the pending tasks of these jobs in the tasks to be scheduled
             3. When scheduling, in processTaskCreate function, if a task cannot be scheduled with the available resources, it'll be queued to schedule later,
              and a smaller task with fewer requirements will be chosen to schedule....
-
          */
 
-        int END_TIME = LAST_SCHEDULED_TIME + 100;
+        int END_TIME = LAST_SCHEDULED_TIME + 3;
+        List <Task> tasks = new ArrayList<>();
+        List <Job> schedulableJobs = new ArrayList<>();
+        Iterator<Job> iter = sortedJobs.iterator();
+        while (iter.hasNext()) {
+            Job job = iter.next();
+            // Select jobs that were submitted within the considered time interval
+            //if (job.getStartTime() >= LAST_SCHEDULED_TIME && job.getStartTime() < END_TIME) {
+            if (job.getStartTime() < END_TIME) {
+                schedulableJobs.add(job);
+                for (int i = 0; i < job.getPendingTasks().size(); i++) {
+                    Task task = job.getPendingTasks().get(i);
+                    String name = task.getName();
+                    List<Task> predecessors = task.getPredecessorTasks();
+                    boolean taskReady = true;
+                    for (int k = 0; k < predecessors.size(); k++) {
+                        if (!predecessors.get(k).isCompleted()) {
+                            taskReady = false;
+                            break;
+                        }
+                    }
+                    if (taskReady && !task.isSubmitted()) {
+                        tasks.add(task);
+                        task.setSubmitted(true);
+                    }
+                }
+            } else {
+                // Amandaaa because jobs are sorted in ascending order of start time. no need to iterate rest of the jobs as their start times would be even later....
+                break;
+            }
+
+            int submittedTasks = (int) job.getTasks().stream().filter(Task::isSubmitted).count();
+            if (submittedTasks == job.getTasks().size()) {
+                iter.remove();
+            }
+            // Because there could be jobs with task maps that are partially completed, due to errors when parsing the data set... so give up after like 100 retries...
+            job.setRetries(job.getRetries() + 1);
+           /*
+            if (job.getRetries() > 1000) {
+                job.setFailed(true);
+                iter.remove();
+            }
+            */
+        }
+        LAST_SCHEDULED_TIME = END_TIME;
+        if (tasks.size() > 0)
+            send(datacenter.getId(), 0.0, CloudSimTagsSDN.TASK_CREATE_ACK, tasks);
+        //scheduleTasks(schedulableJobs);
+
+        if (sortedJobs.isEmpty() != true) {
+            // This is to call the deployTasks function again for scheduling remaining jobs.... do this after a delay...
+            send(this.getId(), 3, CloudSimTagsSDN.SCHEDULE_TASKS, sortedJobs);
+        } else {
+            // create an event to destroy the vms we used to create some level of data center occupancy...
+        }
+        return true;
+    }
+
+    @Override
+    protected boolean deployTasks(List<Job> jobs) {
+        // Select jobs that have start times falling within the current time partition (For now we'll just select 2 jobs to schedule in each iteration)
+        /*
+            1. Select jobs that fall within the current time partition (Maintain a static current time variable (LAST_SCHEDULED_TIME)
+             and append 100s to it to get the end_time. start_time would be the static variable's value
+            2. Include the tasks of all the pending tasks of these jobs in the tasks to be scheduled
+            3. When scheduling, in processTaskCreate function, if a task cannot be scheduled with the available resources, it'll be queued to schedule later,
+             and a smaller task with fewer requirements will be chosen to schedule....
+         */
+
+        int END_TIME = LAST_SCHEDULED_TIME + 3;
         List <Task> tasks = new ArrayList<>();
         List <Job> schedulableJobs = new ArrayList<>();
         Iterator<Job> iter = jobs.iterator();
         while (iter.hasNext()) {
             Job job = iter.next();
             // Select jobs that were submitted within the considered time interval
-            if (job.getStartTime() >= LAST_SCHEDULED_TIME && job.getStartTime() < END_TIME) {
+            //if (job.getStartTime() >= LAST_SCHEDULED_TIME && job.getStartTime() < END_TIME) {
+            if (job.getStartTime() < END_TIME) {
                 schedulableJobs.add(job);
-                tasks.addAll(job.getPendingTasks());
+                for (int i = 0; i < job.getPendingTasks().size(); i++) {
+                    Task task = job.getPendingTasks().get(i);
+                    String name = task.getName();
+                    List<Task> predecessors = task.getPredecessorTasks();
+                    boolean taskReady = true;
+                    for (int k = 0; k < predecessors.size(); k++) {
+                        if (!predecessors.get(k).isCompleted()) {
+                            taskReady = false;
+                            break;
+                        }
+                    }
+                    if (taskReady && !task.isSubmitted()) {
+                        tasks.add(task);
+                        task.setSubmitted(true);
+                    }
+                }
+            } else {
+                // Amandaaa because jobs are sorted in ascending order of start time. no need to iterate rest of the jobs as their start times would be even later....
+                break;
+            }
+
+            int submittedTasks = (int) job.getTasks().stream().filter(Task::isSubmitted).count();
+            if (submittedTasks == job.getTasks().size()) {
                 iter.remove();
             }
+            // Because there could be jobs with task maps that are partially completed, due to errors when parsing the data set... so give up after like 100 retries...
+            job.setRetries(job.getRetries() + 1);
+           /*
+            if (job.getRetries() > 1000) {
+                job.setFailed(true);
+                iter.remove();
+            }
+            */
         }
         LAST_SCHEDULED_TIME = END_TIME;
-        send(datacenter.getId(), 0.0, CloudSimTagsSDN.TASK_CREATE_ACK, tasks);
+        if (tasks.size() > 0)
+            send(datacenter.getId(), 0.0, CloudSimTagsSDN.TASK_CREATE_ACK, tasks);
         //scheduleTasks(schedulableJobs);
 
         if (jobs.isEmpty() != true) {
             // This is to call the deployTasks function again for scheduling remaining jobs.... do this after a delay...
-            send(this.getId(), 10, CloudSimTagsSDN.SCHEDULE_TASKS, jobs);
+            send(this.getId(), 3, CloudSimTagsSDN.SCHEDULE_TASKS, jobs);
+            //send(this.getId(), 3, CloudSimTagsSDN.SCHEDULE_MIGRATION);
+        } else {
+            // create an event to destroy the vms we used to create some level of data center occupancy...
         }
 
 

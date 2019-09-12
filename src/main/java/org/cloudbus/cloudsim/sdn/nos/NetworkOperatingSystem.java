@@ -60,7 +60,10 @@ import org.cloudbus.cloudsim.sdn.workload.Workload;
 public abstract class NetworkOperatingSystem extends SimEntity {
 	protected SDNDatacenter datacenter;
 	protected static int mockid = 123456;
+	protected static boolean printedFinal = false;
 
+	static double hostEnergyConsumption = 0.0;
+	static double switchEnergyConsumption = 0.0;
 	// Physical topology
 	protected PhysicalTopology topology;
 
@@ -112,6 +115,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 	protected abstract boolean deployApplication(List<Vm> vms, Collection<FlowConfig> links, List<ServiceFunctionChainPolicy> sfcPolicy);
 
 	protected abstract boolean deployTasks(List<Job> jobs);
+	protected abstract boolean deployTasksInitial();
 
 
 	public NetworkOperatingSystem(String name) {
@@ -143,6 +147,7 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 			topology.addNode(sw);
 		}
 
+		// AMANDAAAA
 		for(Link link:links) {
 			topology.addLink(link);
 		}
@@ -177,6 +182,9 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 			case CloudSimTagsSDN.SCHEDULE_TASKS:
 				deployTasks((ArrayList<Job>)ev.getData());
 				break;
+			case CloudSimTagsSDN.SCHEDULE_TASKS_INITIAL:
+				deployTasksInitial();
+				break;
 			case CloudSimTags.VM_DESTROY:
 				processVmDestroyAck(ev);
 				break;
@@ -186,11 +194,17 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 			case CloudSimTagsSDN.SDN_VM_CREATE_DYNAMIC_ACK:
 				processVmCreateDynamicAck(ev);
 				break;
+			case CloudSimTagsSDN.SDN_ACTIVATE_SWITCHES:
+				activateSwitches(ev);
+				break;
+			case CloudSimTagsSDN.SCHEDULE_MIGRATION:
+				this.datacenter.startMigration();
+				break;
 			case CloudSimTagsSDN.MONITOR_UPDATE_UTILIZATION:
 				if(this.datacenter != null)
 					this.datacenter.processUpdateProcessing();
 				channelManager.updatePacketProcessing();
-				
+
 				this.updateBWMonitor(Configuration.monitoringTimeInterval);
 				// AMANDAAA
 				this.updateHostMonitor(Configuration.monitoringTimeInterval);
@@ -205,6 +219,8 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 					lastMigration = CloudSim.clock(); 
 				}
 				this.updateVmMonitor(CloudSim.clock());
+
+				//this.logEnergyConsumption();
 				
 				if(CloudSimEx.hasMoreEvent(CloudSimTagsSDN.MONITOR_UPDATE_UTILIZATION)) {
 					double nextMonitorDelay = Configuration.monitoringTimeInterval;
@@ -233,7 +249,87 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 //		Host host = findHost(vm.getId());
 //		vm.setSDNHost(host);
 	}
-	
+
+	protected void activateSwitches(SimEvent ev) {
+		ArrayList<SDNVm> vmList = (ArrayList<SDNVm>) ev.getData();
+		for (SDNVm vm : vmList) {
+			SDNHost host = (SDNHost) vm.getHost();
+			String name = host.getName();
+			String[] taskName = name.split("_");
+			int k = Integer.parseInt(taskName[1]);
+			int i = Integer.parseInt(taskName[2]);
+			String edgeSw = "e_" + k + "_" + i;
+			String aggSw = "a_" + k + "_" + i;
+			for (Switch sw: getSwitchList()) {
+				if (sw.getName().equals(edgeSw))
+					sw.setActive(true);
+				else if (sw.getName().equals(aggSw))
+					sw.setActive(true);
+			}
+		}
+	}
+
+	protected void logEnergyConsumption() {
+		int utilizedHosts = 0;
+		double accEnergy = 0.0;
+		for(Host host:getHostList()) {
+			// Actual workload based power consumption
+			double consumedEnergy = ((SDNHost)host).getConsumedEnergy();
+			SDNHost host_ = (SDNHost)host;
+
+			if (consumedEnergy != 0.0) {
+				utilizedHosts++;
+			}
+
+			//Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
+			accEnergy += consumedEnergy;
+/*
+			if (host_.isActive()) {
+				Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
+				hostEnergyConsumption += consumedEnergy;
+			} else {
+				unused++;
+			}
+	*/
+		}
+
+		int utilizedSwitches = 0;
+		double switchEnergyConsumption = 0.0;
+		for(Switch sw:getSwitchList()) {
+			// Actual workload based power consumption
+			double consumedEnergy = sw.getConsumedEnergy();
+
+			if (consumedEnergy != 0.0) {
+				utilizedSwitches++;
+			}
+
+			//Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
+			switchEnergyConsumption += consumedEnergy;
+	/*
+			if (host_.isActive()) {
+				Log.printLine(host_.getType() + " Host #"+host.getId()+": "+consumedEnergy);
+				hostEnergyConsumption += consumedEnergy;
+			} else {
+				unused++;
+			}
+	*/
+		}
+
+		if (hostEnergyConsumption > 0) {
+			LogWriter serverUtil = LogWriter.getLogger("host_utilization.csv");
+			LogWriter serverEnergy = LogWriter.getLogger("host_energy.csv");
+			LogWriter swLogUtil = LogWriter.getLogger("switch_utilization.csv");
+			LogWriter swEnergy = LogWriter.getLogger("switch_energy.csv");
+			swEnergy.printLine(CloudSim.clock() + "," + switchEnergyConsumption);
+			swLogUtil.printLine(CloudSim.clock() + "," + utilizedHosts);
+			serverUtil.printLine(CloudSim.clock() + "," + hostEnergyConsumption);
+			serverEnergy.printLine(CloudSim.clock() + "," + utilizedHosts);
+		}
+
+		hostEnergyConsumption = accEnergy;
+	}
+
+
 	protected void processVmCreateDynamicAck(SimEvent ev) {
 		
 		Object [] data = (Object []) ev.getData();
@@ -700,15 +796,64 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 	}
 
 	private void updateHostMonitor(double monitoringTimeUnit) {
+		double hostTotalEnergy = 0.0;
+		int activeHosts = 0;
 		if(datacenter != null)
 			for(SDNHost h: datacenter.<SDNHost>getHostList()) {
-				h.updateMonitor(CloudSim.clock(), monitoringTimeUnit);
+				hostTotalEnergy += h.updateMonitor(CloudSim.clock(), monitoringTimeUnit);
+				if (h.isActive())
+					activeHosts++;
 			}
+		if (activeHosts > 0) {
+			LogWriter serverUtil = LogWriter.getLogger("host_utilization.csv");
+			LogWriter serverEnergy = LogWriter.getLogger("host_energy.csv");
+			serverUtil.printLine(CloudSim.clock() + "," + activeHosts);
+			serverEnergy.printLine(CloudSim.clock() + "," + hostTotalEnergy);
+		}
+		if (CloudSim.clock() > 200 && !printedFinal) {
+			LogWriter util = LogWriter.getLogger("total_utilization.txt");
+			int utilizedHosts = 0;
+			int utilizedSwitches = 0;
+			double hostEnergy = 0.0;
+			double swEnergy = 0.0;
+			for(Host host:getHostList()) {
+				// Actual workload based power consumption
+				double consumedEnergy = ((SDNHost)host).getConsumedEnergy();
+				if (consumedEnergy != 0.0) {
+					utilizedHosts++;
+				}
+				hostEnergy += consumedEnergy;
+			}
+
+			for (Switch sw: getSwitchList()) {
+				double consumedEnergy = sw.getConsumedEnergy();
+				if (consumedEnergy != 0.0) {
+					utilizedSwitches++;
+				}
+				swEnergy += consumedEnergy;
+			}
+			util.printLine(CloudSim.clock() + " Total Server Energy Consumption: " + hostEnergy);
+			util.printLine(CloudSim.clock() + " Total Switch Energy Consumption: " + swEnergy);
+			util.printLine(CloudSim.clock() + " Total Switch Utilization: " + utilizedSwitches);
+			util.printLine(CloudSim.clock() + " Total Host Utilization: " + utilizedHosts);
+			printedFinal = true;
+		}
 	}
 	
 	private void updateSwitchMonitor(double monitoringTimeUnit) {
+		double switchTotalEnergy = 0.0;
+		int activeSwitches = 0;
 		for(Switch s:getSwitchList()) {
-			s.updateMonitor(CloudSim.clock(), monitoringTimeUnit);
+			double swEnergy = s.updateMonitor(CloudSim.clock(), monitoringTimeUnit);
+			switchTotalEnergy += swEnergy;
+			if (swEnergy > 0)
+				activeSwitches++;
+		}
+		if (switchTotalEnergy > 0) {
+			LogWriter swLogUtil = LogWriter.getLogger("switch_utilization.csv");
+			LogWriter swEnergy = LogWriter.getLogger("switch_energy.csv");
+			swEnergy.printLine(CloudSim.clock() + "," + switchTotalEnergy);
+			swLogUtil.printLine(CloudSim.clock() + "," + activeSwitches);
 		}
 	}
 	
@@ -792,6 +937,9 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 
 		Task vmTask = datacenter.getTaskVmAllocationPolicy().getTaskIdOfTheInstanceInVm(taskVmList.get(0));
 		ArrayList<Task> predecessorTasks = vmTask.getPredecessorTasks();
+
+		/* Use this for Alibaba traces */
+		/*
 		for (int i = 0; i < predecessorTasks.size(); i++) {
 			Task predecessor = predecessorTasks.get(i);
 			ArrayList<SDNHost> hostList = new ArrayList<>();
@@ -801,6 +949,47 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 				if (hostList.indexOf(host) == -1)
 					hostList.add(host);
 			});
+
+			WorkloadParser workParser = new WorkloadParser(this.getId(), new UtilizationModelFull(),
+			NetworkOperatingSystem.getVmNameToIdMap(), NetworkOperatingSystem.getFlowNameToIdMap());
+
+			hostList.forEach(host -> {
+				// create a mock vm in the host
+				SDNVm mockVm = new SDNVm(mockid++, taskVmList.get(0).getUserId(),10,1,100,100,100,"VMM", new CloudletSchedulerTimeShared(), 0, 0);
+				mockVm.setHost(host);
+				mockVm.setHostName(host.getName());
+				addVm(mockVm);
+				datacenter.getTaskVmAllocationPolicy().getVmTable().put(mockVm.getUid(), mockVm.getHost());
+
+				taskVmList.forEach(vm -> {
+					FlowConfig arc = new FlowConfig(mockVm.getId(), vm.getId(), -1, 0, 0.0);
+					addFlow(arc);
+					vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());
+					Workload wl = workParser.generateWorkload(mockVm.getId(), vm.getId());
+					sendNow(this.datacenter.getId(), CloudSimTagsSDN.REQUEST_SUBMIT, wl.request);
+				});
+			});
+		}
+*/
+
+		// Get the input file list
+		// For each file, iterate through output files of predecessors and see which one outputs the particular input... if none that means it's a fresh file.. so no comm required
+		ArrayList<SDNHost> hostList = new ArrayList<>();
+		Map<String, Long> inpFiles = vmTask.getInputFiles();
+		for (String file: inpFiles.keySet()) {
+			for (int i = 0; i < predecessorTasks.size(); i++) {
+				Task predecessor = predecessorTasks.get(i);
+				Map<String, Long> outFiles = predecessor.getOutputFiles();
+				for (String outfile: outFiles.keySet()) {
+					if (file.equals(outfile)) {
+						predecessor.getInstanceHostMap().forEach((instanceVm,host) -> {
+							if (hostList.indexOf(host) == -1)
+								hostList.add(host);
+						});
+						break;
+					}
+				}
+			}
 
 			WorkloadParser workParser = new WorkloadParser(this.getId(), new UtilizationModelFull(),
 					NetworkOperatingSystem.getVmNameToIdMap(), NetworkOperatingSystem.getFlowNameToIdMap());
@@ -822,36 +1011,6 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 				});
 			});
 		}
-
-
-/*
-		for (SDNVm vm : taskVmList) {
-			for (SDNVm vm0 : taskVmList) {
-				if (vm.getId() == vm0.getId())
-					continue;
-				FlowConfig arc = new FlowConfig(vm.getId(), vm0.getId(), -1, 0, 0.0);
-				addFlow(arc);
-				vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());
-			}
-		}
-
-		WorkloadParser workParser = new WorkloadParser(this.getId(), new UtilizationModelFull(),
-				NetworkOperatingSystem.getVmNameToIdMap(), NetworkOperatingSystem.getFlowNameToIdMap());
-
-		for (SDNVm vm : taskVmList) {
-			for (SDNVm vm0 : taskVmList) {
-				if (vm.getId() == vm0.getId())
-					continue;
-
-				FlowConfig arc = new FlowConfig(vm.getId(), vm0.getId(), -1, 0, 0.0);
-				addFlow(arc);
-				vnMapper.buildForwardingTable(arc.getSrcId(), arc.getDstId(), arc.getFlowId());
-
-				Workload wl = workParser.generateWorkload(vm.getId(), vm0.getId());
-				sendNow(this.datacenter.getId(), CloudSimTagsSDN.REQUEST_SUBMIT, wl.request);
-			}
-		}
-*/
 
 		return true;
 	}

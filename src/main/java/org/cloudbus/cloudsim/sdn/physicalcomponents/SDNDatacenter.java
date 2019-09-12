@@ -10,19 +10,17 @@ package org.cloudbus.cloudsim.sdn.physicalcomponents;
 import java.util.*;
 
 import com.google.common.collect.Multimap;
-import org.cloudbus.cloudsim.Cloudlet;
-import org.cloudbus.cloudsim.CloudletScheduler;
-import org.cloudbus.cloudsim.Datacenter;
-import org.cloudbus.cloudsim.DatacenterCharacteristics;
-import org.cloudbus.cloudsim.Host;
-import org.cloudbus.cloudsim.Log;
-import org.cloudbus.cloudsim.Storage;
-import org.cloudbus.cloudsim.Vm;
-import org.cloudbus.cloudsim.VmAllocationPolicy;
+import org.cloudbus.cloudsim.*;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
+import org.cloudbus.cloudsim.core.SimEvent;
+import org.cloudbus.cloudsim.provisioners.BwProvisioner;
+import org.cloudbus.cloudsim.provisioners.BwProvisionerSimple;
+import org.cloudbus.cloudsim.provisioners.RamProvisioner;
+import org.cloudbus.cloudsim.provisioners.RamProvisionerSimple;
 import org.cloudbus.cloudsim.sdn.*;
+import org.cloudbus.cloudsim.sdn.Packet;
 import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.VmAllocationInGroup;
 import org.cloudbus.cloudsim.sdn.policies.vmallocation.VmAllocationPolicyPriorityFirst;
@@ -56,6 +54,7 @@ public class SDNDatacenter extends Datacenter {
 	}
 
 	private static boolean isMigrateEnabled = false;
+	private static int hostIndex = 0;
 
 	/** The vm provisioner. */
 	private VmAllocationPolicyToTasks taskVmAllocationPolicy;
@@ -291,6 +290,9 @@ public class SDNDatacenter extends Datacenter {
 			case CloudSimTagsSDN.NEW_TASK_ASSIGN:
 				allocateHostsToTaskGroup(ev, false);
 				break;
+			case CloudSimTagsSDN.SDN_VM_CREATE:
+				processSDNVmCreate(ev, false);
+				break;
 			default: 
 				System.out.println("Unknown event recevied by SdnDatacenter. Tag:"+ev.getTag());
 		}
@@ -298,9 +300,14 @@ public class SDNDatacenter extends Datacenter {
 
 	protected void allocateHostsToTaskGroup(SimEvent ev, boolean ack) {
 		Map<SDNVm, SDNHost> assignmentMap = (Map<SDNVm, SDNHost>) ev.getData();
+		ArrayList<Task> failedTasks = new ArrayList<>();
 		for (SDNVm vm: assignmentMap.keySet()) {
+			Task task = taskVmAllocationPolicy.getTaskIdOfTheInstanceInVm(vm);
 			boolean success = taskVmAllocationPolicy.allocateHostForVm(vm, assignmentMap.get(vm));
 			if (success) {
+				task.getScheduledInstances().add(vm);
+				task.getPendingInstances().remove(vm);
+
 				Log.printLine(CloudSim.clock() + ": " + getName() + ": Trying to Create VM #" + vm.getId()
 						+ " in " + this.getName() + ", (" + vm.getStartTime() + "~" + vm.getFinishTime() + ")");
 
@@ -314,13 +321,18 @@ public class SDNDatacenter extends Datacenter {
 				vm.updateVmProcessing(CloudSim.clock(), getTaskVmAllocationPolicy().getHost(vm).getVmScheduler()
 						.getAllocatedMipsForVm(vm));
 
-				send(this.getId(), vm.getStartTime(), CloudSimTags.VM_CREATE_ACK, vm);
+				send(this.getId(), 0, CloudSimTags.VM_CREATE_ACK, vm);
 
 				ArrayList<SDNVm> successVmList = new ArrayList<>();
 				successVmList.add(vm);
 				// AMANDAAAA deploy links to initiate communication among these VMs....
 				sendNow(nos.getId(), CloudSimTagsSDN.DEPLOY_TASK_COMM, successVmList);
+			} else {
+				failedTasks.add(task);
 			}
+		}
+		if (failedTasks.size() > 0) {
+			send(this.getId(), 0.0, CloudSimTagsSDN.TASK_CREATE_ACK, failedTasks);
 		}
 	}
 
@@ -331,6 +343,7 @@ public class SDNDatacenter extends Datacenter {
 		Collections.sort(hosts, new Comparator<SDNHost>() {
 			public int compare(SDNHost o1, SDNHost o2) {
 				return (int) (o1.getBaselineEnergyConsumption() - o2.getBaselineEnergyConsumption());
+				//return (int) (o2.getPerformancePerWatt(o2.getTotalMips(), o2) - o1.getPerformancePerWatt(o1.getTotalMips(),o1));
 			}
 		});
 
@@ -343,15 +356,19 @@ public class SDNDatacenter extends Datacenter {
 		//Compute total MIS required by new tasks
 		ArrayList<Task> total = new ArrayList<>();
 		for (int j = 0; j < tasks.size(); j++) {
-			totalReqMips += tasks.get(j).getInstances().stream().mapToLong(SDNVm::getTotalMips).sum();
+			totalReqMips += tasks.get(j).getPendingInstances().stream().mapToLong(SDNVm::getTotalMips).sum();
 			taskVmAllocationPolicy.getTaskVmMap().put(tasks.get(j), tasks.get(j).getInstances());
+			int finalJ = j;
+			tasks.get(j).getInstances().forEach(instance -> {
+				taskVmAllocationPolicy.getTaskVmIdMap().put(tasks.get(finalJ), instance.getId());
+			});
 		}
 
 		long totalMIPS = 0;
 		boolean reqMet = false;
 		ArrayList<SDNHost> selectedHostList = new ArrayList<>();
-		for (int i = 0; i < getHostList().size(); i++) {
-			SDNHost host = (SDNHost) getHostList().get(i);
+		for (int i = 0; i < hosts.size(); i++) {
+			SDNHost host = (SDNHost) hosts.get(i);
 			if (!host.isActive())
 				continue;
 			totalMIPS += host.getAvailableMips();
@@ -364,8 +381,8 @@ public class SDNDatacenter extends Datacenter {
 
 		if (!reqMet) {
 			// Use idle PMs
-			for (int i = 0; i < getHostList().size(); i++) {
-				SDNHost host = (SDNHost) getHostList().get(i);
+			for (int i = 0; i < hosts.size(); i++) {
+				SDNHost host = (SDNHost) hosts.get(i);
 				if (selectedHostList.indexOf(host) == -1) {
 					totalMIPS += host.getAvailableMips();
 					selectedHostList.add(host);
@@ -376,20 +393,23 @@ public class SDNDatacenter extends Datacenter {
 			}
 		}
 
-		//Compute all tasks
+		//Compute curr active tasks on selected host lists
 		ArrayList<Task> currActiveTasks = new ArrayList<>();
 		for (int j = 0; j < selectedHostList.size(); j++) {
 			selectedHostList.get(j).getVmList().forEach(vm -> {
 				Task vmtask = taskVmAllocationPolicy.getTaskIdOfTheInstanceInVm((SDNVm)vm);
 				if (currActiveTasks.indexOf(vmtask) == -1) {
 					currActiveTasks.add(vmtask);
+					/*
 					ListIterator<SDNVm> itr = vmtask.getScheduledInstances().listIterator();
 					while (itr.hasNext()) {
 						if (itr.next() == vm) {
+							// Adding the task back to a pending instance...
 							vmtask.getPendingInstances().add((SDNVm)vm);
 							itr.remove();
 						}
 					}
+					*/
 				}
 			});
 		}
@@ -397,7 +417,7 @@ public class SDNDatacenter extends Datacenter {
 		// Merge curr active tasks with new arriving tasks
 		currActiveTasks.addAll(tasks);
 
-		// sort curr active tasks in decreading order of required mips
+		// sort curr active tasks in decreasing order of required mips
 		Collections.sort(currActiveTasks, new Comparator<Task>() {
 			public int compare(Task o1, Task o2) {
 				return (int) (o2.getInstances().stream().mapToLong(SDNVm::getTotalMips).sum() - o1.getInstances().stream().mapToLong(SDNVm::getTotalMips).sum());
@@ -420,11 +440,11 @@ public class SDNDatacenter extends Datacenter {
 
 		currActiveTasks.forEach(task -> {
 			SDNVm referenceVm = task.getInstances().get(0);
-			OptionalDouble maxMipsReq = task.getPendingInstances().stream().mapToDouble(SDNVm::getMips).max();
-			int pes = task.getPendingInstances().stream().mapToInt(SDNVm::getNumberOfPes).sum();
-			int ram = task.getPendingInstances().stream().mapToInt(SDNVm::getRam).sum();
-			long bw = task.getPendingInstances().stream().mapToLong(SDNVm::getBw).sum();
-			long storage = task.getPendingInstances().stream().mapToLong(SDNVm::getSize).sum();
+			OptionalDouble maxMipsReq = task.getInstances().stream().mapToDouble(SDNVm::getMips).max();
+			int pes = task.getInstances().stream().mapToInt(SDNVm::getNumberOfPes).sum();
+			int ram = task.getInstances().stream().mapToInt(SDNVm::getRam).sum();
+			long bw = task.getInstances().stream().mapToLong(SDNVm::getBw).sum();
+			long storage = task.getInstances().stream().mapToLong(SDNVm::getSize).sum();
 
 			int size = task.getInstances().size();
 			SDNVm mockCumulativeVm = new SDNVm(SDNVm.getUniqueVmId(), referenceVm.getUserId(), maxMipsReq.getAsDouble(),
@@ -488,15 +508,16 @@ public class SDNDatacenter extends Datacenter {
 			}
 		}
 
-		// Add failedTasks to idle PMs that weren't originally considered.....!
-        ArrayList<SDNHost> idlePMList = new ArrayList<>();
-		getHostList().forEach(host -> {
-		    if (selectedHostList.indexOf(host) == -1 && ((SDNHost)host).isActive() == false) {
-		        idlePMList.add((SDNHost)host);
+		// Add failedTasks to active/idle PMs that weren't originally considered.....!
+        ArrayList<SDNHost> pmsLeftToBeConsidered = new ArrayList<>();
+		hosts.forEach(host -> {
+		    //if (selectedHostList.indexOf(host) == -1 && ((SDNHost)host).isActive() == false) {
+		    if (selectedHostList.indexOf(host) == -1) {
+		        pmsLeftToBeConsidered.add((SDNHost)host);
             }
         });
 
-		Collections.sort(idlePMList, new Comparator<SDNHost>() {
+		Collections.sort(pmsLeftToBeConsidered, new Comparator<SDNHost>() {
 			public int compare(SDNHost o1, SDNHost o2) {
 				return (int) (o1.getBaselineEnergyConsumption() - o2.getBaselineEnergyConsumption());
 			}
@@ -504,8 +525,13 @@ public class SDNDatacenter extends Datacenter {
 
 		failedTasks.forEach(task -> {
             boolean success = false;
-            success = taskVmAllocationPolicy.allocateHostsForVmEnreal(task, mockVmToActual.get(task), task.getInstances(), idlePMList, currAllocMap);
+            success = taskVmAllocationPolicy.allocateHostsForVmEnrealAll(task, mockVmToActual.get(task), task.getInstances(), pmsLeftToBeConsidered, currAllocMap);
             if (!success) {
+				SDNHost newHost = new HostFactorySimple().createHost(10000, 1000000000, 10000000, 32, 2000, "h" + hostIndex++);
+				ArrayList<SDNHost> newHostlist = new ArrayList<>();
+				newHostlist.add(newHost);
+				getTaskVmAllocationPolicy().getHostList().add(newHost);
+				taskVmAllocationPolicy.allocateHostsForVmEnreal(task, mockVmToActual.get(task), task.getInstances(), newHostlist, currAllocMap);
                 // THIS IS A REAL DRAWBACK OF ENREAL...!
 				// Now need to create new PMS.... and assign the tasks
 				// For now let's exit
@@ -539,12 +565,6 @@ public class SDNDatacenter extends Datacenter {
 				}
 			}
 		}
-
-		// Since we need to pass a separate copy of the jobs to each ant. Arraylist pass by reference if copied in the ordinary way.
-		Map<SDNVm, SDNHost> migrationMapCpy = new HashMap<>();
-		migrationMap.forEach((vm,host)-> {
-			migrationMapCpy.put(vm, host);
-		});
 
 		for (SDNVm vm : migrationMap.keySet()) {
 			boolean success = migrateVmToHostEnRealDirect(vm, migrationMap.get(vm));
@@ -597,17 +617,35 @@ public class SDNDatacenter extends Datacenter {
 		return true;
 	}
 
+	protected void processSDNVmCreate(SimEvent ev, boolean ack) {
+		ArrayList<SDNVm> vmListForOccupancy = (ArrayList<SDNVm>) ev.getData();
+		for (SDNVm vm : vmListForOccupancy) {
+			//getTaskVmAllocationPolicy().allocateHostForVm(vm);
+			getTaskVmAllocationPolicy().allocateHostForVmCombinedMostFullFirst(vm);
+		}
+		sendNow(nos.getId(), CloudSimTagsSDN.SDN_ACTIVATE_SWITCHES, vmListForOccupancy);
+		sendNow(nos.getId(), CloudSimTagsSDN.SCHEDULE_TASKS_INITIAL);
+	}
+
 	protected void processTaskCreate(SimEvent ev, boolean ack) {
 		ArrayList<Task> tasks = (ArrayList<Task>) ev.getData();
 
 		//if (tasks.size() > 0)
-		//	enReal(tasks);
+			//enReal(tasks);
 
 
 		ArrayList<Task> tasksWithPendingInstances = new ArrayList<>();
 
 		for (Task task: tasks) {
-			ArrayList<SDNVm> successVmList = getTaskVmAllocationPolicy().allocateHostsForTask(task);
+			if (task.getPendingInstances().size() != 0) {
+				// Add to failed
+				tasksWithPendingInstances.add(task);
+			}
+			//ArrayList<SDNVm> successVmList = getTaskVmAllocationPolicy().allocateHostsForTask(task);
+			ArrayList<SDNVm> successVmList = getTaskVmAllocationPolicy().allocateHostsForTask_COMP(task);
+
+			if (successVmList == null)
+				continue;
 
 			for (SDNVm vm : successVmList) {
 					Log.printLine(CloudSim.clock() + ": " + getName() + ": Trying to Create VM #" + vm.getId()
@@ -623,22 +661,17 @@ public class SDNDatacenter extends Datacenter {
 					vm.updateVmProcessing(CloudSim.clock(), getTaskVmAllocationPolicy().getHost(vm).getVmScheduler()
 							.getAllocatedMipsForVm(vm));
 
-					send(this.getId(), vm.getStartTime(), CloudSimTags.VM_CREATE_ACK, vm);
+					send(this.getId(), 0, CloudSimTags.VM_CREATE_ACK, vm);
 
 				// AMANDAAAA deploy links to initiate communication among these VMs....
 				sendNow(nos.getId(), CloudSimTagsSDN.DEPLOY_TASK_COMM, successVmList);
+					//send(nos.getId(),CloudSim.getMinTimeBetweenEvents(), CloudSimTagsSDN.DEPLOY_TASK_COMM, successVmList);
 			}
-			if (task.getPendingInstances().size() != 0) {
-				// Add to failed
-				tasksWithPendingInstances.add(task);
-            }
 		}
 
 		if (tasksWithPendingInstances.size() != 0) {
-            send(this.getId(), 10000, CloudSimTagsSDN.TASK_CREATE_ACK, tasksWithPendingInstances);
+            send(this.getId(), 0, CloudSimTagsSDN.TASK_CREATE_ACK, tasksWithPendingInstances);
         }
-
-
 	}
 
 
@@ -763,7 +796,7 @@ public class SDNDatacenter extends Datacenter {
 		for (int i = 0; i < list.size(); i++) {
 			Host host = list.get(i);
 			for (Vm vm : host.getVmList()) {
-				
+				Task task = getTaskVmAllocationPolicy().getTaskIdOfTheInstanceInVm((SDNVm)vm);
 				// Check all completed Cloudlets
 				while (vm.getCloudletScheduler().isFinishedCloudlets()) {
 					Cloudlet cl = vm.getCloudletScheduler().getNextFinishedCloudlet();
@@ -803,18 +836,37 @@ public class SDNDatacenter extends Datacenter {
 				for(Cloudlet cl:failedCloudlet) {
 					processCloudletFailed(cl);
 				}
+
+				// AMANDAAA including this condition to prevent dependent tasks from waiting forever....
+				if (vm.getCloudletScheduler().getCloudletExecList().size() == 0 &&
+						vm.getCloudletScheduler().getCloudletFailedList().size() == 0 && vm.getCloudletScheduler().getCloudletPausedList().size() == 0) {
+					// Cloudlets have finished execution... although the loop keeps executing (not sure why)... so to schedule remaining tasks
+					if (task != null) {
+						task.addCompletedInstance((SDNVm) vm);
+						if (task.getInstances().size() == task.getCompletedInstances().size())
+							task.setCompleted(true);
+						//hostVMMap.put(host,vm);
+					}
+				}
+
 			}
 		}
 
 		for (Map.Entry<Host, Vm> entry : hostVMMap.entrySet()) {
 			//entry.getKey().vmDestroy(entry.getValue());
-			getTaskVmAllocationPolicy().deallocateHostForVm(entry.getValue());
-			SDNHost host = (SDNHost)entry.getKey();
-			if(host.getVmList().size() == 0) {
-				host.setActive(false);
+			Task task = taskVmAllocationPolicy.getTaskIdOfTheInstanceInVm((SDNVm)entry.getValue());
+			if (task != null) {
+				task.addCompletedInstance((SDNVm) entry.getValue());
+				SDNHost host = (SDNHost) entry.getKey();
+				if (host.getVmList().size() == 0) {
+					host.setActive(false);
+				}
+				if (task.getInstances().size() == task.getCompletedInstances().size())
+					task.setCompleted(true);
 			}
+			getTaskVmAllocationPolicy().deallocateHostForVm(entry.getValue());
+			//sendNow(nos.getId(), CloudSimTags.VM_DESTROY, entry.getValue());
 		}
-
 	}
 	
 	private void processRequestSubmit(Request req) {
@@ -967,6 +1019,46 @@ public class SDNDatacenter extends Datacenter {
 			}
 		}		
 	}
+
+	public void startMigration() {
+			Log.printLine(CloudSim.clock()+": Migration started..");
+
+			List<Map<String, Object>> migrationMap = getVmAllocationPolicy().optimizeAllocation(
+					getVmList());
+
+			if (migrationMap != null && migrationMap.size() > 0) {
+				migrationAttempted += migrationMap.size();
+
+				// Process cloudlets before migration because cloudlets are processed during migration process..
+				updateCloudletProcessing();
+				checkCloudletCompletion();
+
+				for (Map<String, Object> migrate : migrationMap) {
+					Vm vm = (Vm) migrate.get("vm");
+					Host targetHost = (Host) migrate.get("host");
+//					Host oldHost = vm.getHost();
+
+					Log.formatLine(
+							"%.2f: Migration of %s to %s is started",
+							CloudSim.clock(),
+							vm,
+							targetHost);
+
+					targetHost.addMigratingInVm(vm);
+
+
+					/** VM migration delay = RAM / bandwidth **/
+					// we use BW / 2 to model BW available for migration purposes, the other
+					// half of BW is for VM communication
+					// around 16 seconds for 1024 MB using 1 Gbit/s network
+					send(
+							getId(),
+							vm.getRam() / ((double) targetHost.getBw() / (2 * 8000)),
+							CloudSimTags.VM_MIGRATE,
+							migrate);
+				}
+			}
+		}
 	
 	public NetworkOperatingSystem getNOS() {
 		return this.nos;

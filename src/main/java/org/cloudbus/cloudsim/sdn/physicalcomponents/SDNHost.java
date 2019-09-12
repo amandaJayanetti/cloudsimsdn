@@ -41,7 +41,37 @@ import org.cloudbus.cloudsim.sdn.virtualcomponents.SDNVm;
 public class SDNHost extends Host implements Node {
 	private ForwardingRule forwardingTable;
 	private RoutingTable routingTable;
+
+	public double getFreeResourcePercentage() {
+		return freeResourcePercentage;
+	}
+
+	public void setFreeResourcePercentage(double freeResourcePercentage) {
+		this.freeResourcePercentage = freeResourcePercentage;
+	}
+
+	private double freeResourcePercentage;
 	private int rank = -1;
+
+	public String getRackId() {
+		return rackId;
+	}
+
+	public void setRackId(String rackId) {
+		this.rackId = rackId;
+	}
+
+	private String rackId;
+
+	public String getPodId() {
+		return podId;
+	}
+
+	public void setPodId(String podId) {
+		this.podId = podId;
+	}
+
+	private String podId;
 
 	public boolean isActive() {
 		return active;
@@ -380,7 +410,7 @@ public class SDNHost extends Host implements Node {
 		return powerMonitor.getTotalEnergyConsumed();
 	}
 	
-	public void updateMonitor(double logTime, double timeUnit) {
+	public double updateMonitor(double logTime, double timeUnit) {
 		long capacity = (long) (this.getTotalMips() *timeUnit);
 		//double utilization = (double)(this.getTotalMips() - this.getAvailableMips()) / capacity / Consts.MILLION;
 		double utilization = (double)monitoringProcessedMIsPerUnit / capacity / Consts.MILLION;
@@ -388,15 +418,16 @@ public class SDNHost extends Host implements Node {
 		
 		monitoringProcessedMIsPerUnit = 0;
 		
-		LogWriter log = LogWriter.getLogger("host_utilization.csv");
-		log.printLine(this.getName()+","+logTime+","+utilization);
+		//LogWriter log = LogWriter.getLogger("host_utilization.csv");
+		//log.printLine(this.getName()+","+logTime+","+utilization);
 		
 		double energy = powerMonitor.computePowerConsumption(logTime, utilization, this);
-		LogWriter logEnergy = LogWriter.getLogger("host_energy.csv");
-		logEnergy.printLine(this.getName()+","+logTime+","+energy);
+		//LogWriter logEnergy = LogWriter.getLogger("host_energy.csv");
+		//logEnergy.printLine(this.getName()+","+logTime+","+energy);
 		
 		// Also update hosting VMs in this machine
 		updateVmMonitor(timeUnit);
+		return energy;
 	}
 
 	public double getEstimatedRiseInPowerConsumptionForNextPeriod(double newMipsToBeProcessed, double duration) {
